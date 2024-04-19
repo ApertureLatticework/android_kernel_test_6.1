@@ -2519,7 +2519,8 @@ err_cleanup:
 	pm_runtime_put_noidle(gi3c->se.dev);
 	pm_runtime_set_suspended(gi3c->se.dev);
 	pm_runtime_enable(gi3c->se.dev);
-
+	geni_capture_stop_time(&gi3c->se, gi3c->ipc_log_kpi, __func__,
+			       gi3c->i3c_kpi, start_time, 0, 0);
 	return ret;
 }
 
