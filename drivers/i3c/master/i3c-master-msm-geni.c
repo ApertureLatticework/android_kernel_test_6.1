@@ -317,6 +317,7 @@ struct geni_i3c_dev {
 	dma_addr_t rx_phy;
 	bool gsi_err;
 	bool cfg_sent; /* gsi config sent flag */
+	bool is_i2c_xfer; /* i2c transfer flag */
 	spinlock_t spinlock;
 	u32 clk_src_freq;
 	u32 dfs_idx;
