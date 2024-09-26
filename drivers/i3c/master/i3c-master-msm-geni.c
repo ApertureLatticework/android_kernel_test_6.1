@@ -3674,7 +3674,7 @@ static int geni_i3c_probe(struct platform_device *pdev)
 	}
 
 	INIT_WORK(&gi3c->hj_wd, geni_i3c_hotjoin);
-	gi3c->hj_wq = alloc_workqueue("%s", 0, 0, dev_name(gi3c->se.dev));
+	gi3c->hj_wq = alloc_workqueue("%s", WQ_UNBOUND | WQ_HIGHPRI, 1, dev_name(gi3c->se.dev));
 	geni_i3c_enable_hotjoin_irq(gi3c, true);
 
 	I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev, "I3C probed:%d\n", ret);
