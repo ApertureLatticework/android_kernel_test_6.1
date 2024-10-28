@@ -1,44 +1,59 @@
 ---
- arch/arm64/configs/vendor/autoghgvm_GKI.config         | 2 ++
- arch/arm64/configs/vendor/autoghgvm_consolidate.config | 2 --
- autoghgvm.bzl                                          | 2 ++
- 3 files changed, 4 insertions(+), 2 deletions(-)
+ drivers/i3c/master/i3c-master-msm-geni.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm64/configs/vendor/autoghgvm_GKI.config b/arch/arm64/configs/vendor/autoghgvm_GKI.config
-index 7cc5c0a014571..40aa300f3717c 100644
---- a/arch/arm64/configs/vendor/autoghgvm_GKI.config
-+++ b/arch/arm64/configs/vendor/autoghgvm_GKI.config
-@@ -103,6 +103,8 @@ CONFIG_SPI_QCOM_GENI_MSM=m
- CONFIG_SPI_SPIDEV=m
- CONFIG_STMMAC_ETH=m
- CONFIG_USB_DWC3_MSM=m
-+CONFIG_USB_EHSET_TEST_FIXTURE=m
-+CONFIG_USB_LINK_LAYER_TEST=m
- CONFIG_USB_MSM_EUSB2_PHY=m
- CONFIG_USB_MSM_SSPHY_QMP=m
- CONFIG_VHOST_MENU=y
-diff --git a/arch/arm64/configs/vendor/autoghgvm_consolidate.config b/arch/arm64/configs/vendor/autoghgvm_consolidate.config
-index 6e2def82f2a8e..c5d822153bb18 100644
---- a/arch/arm64/configs/vendor/autoghgvm_consolidate.config
-+++ b/arch/arm64/configs/vendor/autoghgvm_consolidate.config
-@@ -1,4 +1,2 @@
- CONFIG_LOCALVERSION="-debug"
- CONFIG_SERIAL_CORE_CONSOLE=y
--CONFIG_USB_EHSET_TEST_FIXTURE=y
--CONFIG_USB_LINK_LAYER_TEST=y
-diff --git a/autoghgvm.bzl b/autoghgvm.bzl
-index a6ac44b5d945c..dca460949c080 100644
---- a/autoghgvm.bzl
-+++ b/autoghgvm.bzl
-@@ -69,6 +69,8 @@ def define_autoghgvm():
-         "drivers/tty/hvc/hvc_gunyah.ko",
-         "drivers/tty/serial/qcom_geni_serial_msm.ko",
-         "drivers/usb/dwc3/dwc3-msm.ko",
-+        "drivers/usb/misc/ehset.ko",
-+        "drivers/usb/misc/lvstest.ko",
-         "drivers/usb/phy/phy-generic.ko",
-         "drivers/usb/phy/phy-msm-snps-eusb2.ko",
-         "drivers/usb/phy/phy-msm-snps-hs.ko",
+diff --git a/drivers/i3c/master/i3c-master-msm-geni.c b/drivers/i3c/master/i3c-master-msm-geni.c
+index 45e0f990cbec9..4a7e4f39e6ccd 100644
+--- a/drivers/i3c/master/i3c-master-msm-geni.c
++++ b/drivers/i3c/master/i3c-master-msm-geni.c
+@@ -315,6 +315,7 @@ struct geni_i3c_dev {
+ 	int i3c_kpi;
+ 	struct completion done;
+ 	struct mutex lock;
++	struct mutex i3c_ibi_lock; /* ibi master request lock */
+ 	struct gsi_common gsi;
+ 	dma_addr_t rx_phy;
+ 	bool gsi_err;
+@@ -3043,8 +3044,8 @@ static void qcom_geni_i3c_ibi_conf(struct geni_i3c_dev *gi3c)
+ 	gi3c->ibi.is_init = true;
+ }
+ 
+-static int geni_i3c_master_request_ibi(struct i3c_dev_desc *dev,
+-	const struct i3c_ibi_setup *req)
++static int geni_i3c_request_ibi(struct i3c_dev_desc *dev,
++				const struct i3c_ibi_setup *req)
+ {
+ 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+ 	struct geni_i3c_dev *gi3c = to_geni_i3c_master(m);
+@@ -3119,6 +3120,20 @@ static int geni_i3c_master_request_ibi(struct i3c_dev_desc *dev,
+ 	return -ENOSPC;
+ }
+ 
++static int geni_i3c_master_request_ibi(struct i3c_dev_desc *dev,
++				       const struct i3c_ibi_setup *req)
++{
++	struct i3c_master_controller *m = i3c_dev_get_master(dev);
++	struct geni_i3c_dev *gi3c = to_geni_i3c_master(m);
++	int ret;
++
++	mutex_lock(&gi3c->i3c_ibi_lock);
++	ret = geni_i3c_request_ibi(dev, req);
++	mutex_unlock(&gi3c->i3c_ibi_lock);
++
++	return ret;
++}
++
+ static int qcom_deallocate_ibi_table_entry(struct geni_i3c_dev *gi3c)
+ {
+ 	u32 i, timeout;
+@@ -3878,6 +3893,7 @@ static int geni_i3c_probe(struct platform_device *pdev)
+ 
+ 	init_completion(&gi3c->done);
+ 	mutex_init(&gi3c->lock);
++	mutex_init(&gi3c->i3c_ibi_lock);
+ 	spin_lock_init(&gi3c->spinlock);
+ 	platform_set_drvdata(pdev, gi3c);
+ 
 -- 
 GitLab
 
