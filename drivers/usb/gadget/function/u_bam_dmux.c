@@ -60,6 +60,8 @@ static char bam_ch_names[BAM_DMUX_NUM_FUNCS][BAM_DMUX_CH_NAME_MAX_LEN];
 #define BAM_PENDING_BYTES_LIMIT			(50 * BAM_MUX_RX_REQ_SIZE)
 #define BAM_PENDING_BYTES_FCTRL_EN_TSHOLD	(BAM_PENDING_BYTES_LIMIT / 3)
 
+/* Extra buffer size to allocate for tx */
+#define EXTRA_ALLOCATION_SIZE_U_BAM	128
 
 static unsigned int bam_pending_pkts_limit = BAM_PENDING_PKTS_LIMIT;
 module_param(bam_pending_pkts_limit, uint, 0644);
@@ -324,6 +326,14 @@ static void gbam_write_data_tohost(struct gbam_port *port)
 		if (!skb)
 			break;
 
+		/*
+		 * Some UDC requires allocation of some extra bytes for
+		 * TX buffer due to hardware requirement. Check if extra
+		 * bytes are already there, otherwise allocate new buffer
+		 * with extra bytes and do memcpy.
+		 */
+		if (port->gadget->extra_buf_alloc)
+			extra_alloc = EXTRA_ALLOCATION_SIZE_U_BAM;
 		tail_room = skb_tailroom(skb);
 		if (tail_room < extra_alloc) {
 			pr_debug("%s: tail_room  %d less than %d\n", __func__,

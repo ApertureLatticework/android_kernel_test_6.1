@@ -3550,7 +3550,7 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 		goto pm_put;
 	}
 
-	udc->status_buf = kzalloc(2 + EXTRA_ALLOCATION_SIZE,
+	udc->status_buf = kzalloc(2 + udc->gadget.extra_buf_alloc,
 				GFP_KERNEL); /* for GET_STATUS */
 	if (!udc->status_buf) {
 		usb_ep_free_request(&udc->ep0in.ep, udc->status);
@@ -3831,6 +3831,10 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	udc->gadget.ep0 = &udc->ep0in.ep;
 
 	pdata = dev->platform_data;
+	if (pdata) {
+		if (pdata->enable_axi_prefetch)
+			udc->gadget.extra_buf_alloc = EXTRA_ALLOCATION_SIZE;
+	}
 
 	if (udc->udc_driver->flags & CI13XXX_REQUIRE_TRANSCEIVER) {
 		udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);

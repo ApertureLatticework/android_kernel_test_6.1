@@ -457,6 +457,7 @@ struct usb_gadget {
 	unsigned			lpm_capable:1;
 	int				irq;
 	int				id_number;
+	u32				extra_buf_alloc;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
