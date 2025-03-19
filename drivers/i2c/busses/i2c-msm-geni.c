@@ -2837,14 +2837,29 @@ static int geni_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			return 0;
 		}
 		if (ret) {
-			/* for levm skip auto suspend timer */
-			if (!gi2c->is_le_vm) {
-				pm_runtime_mark_last_busy(gi2c->dev);
-				pm_runtime_put_autosuspend(gi2c->dev);
+			if (gi2c->se_mode == FIFO_SE_DMA) {
+				gi2c->err = -EBUSY;
+				ret = geni_i2c_bus_recovery(gi2c);
+				if (ret)
+					I2C_LOG_ERR(gi2c->ipcl, true, gi2c->dev,
+					    "%s:Bus Recovery failed\n", __func__);
+				gi2c->err = 0;
+			} else {
+				I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+					    "Bus Recovery not supported for GSI\n");
 			}
-			mutex_unlock(&gi2c->i2c_ssr.ssr_lock);
-			atomic_set(&gi2c->is_xfer_in_progress, 0);
-			return ret; //Don't perform xfer is cancel failed
+
+			if (gi2c->se_mode == GSI_ONLY || ret) {
+				/* for levm skip auto suspend timer */
+				if (!gi2c->is_le_vm) {
+					pm_runtime_mark_last_busy(gi2c->dev);
+					pm_runtime_put_autosuspend(gi2c->dev);
+				}
+				mutex_unlock(&gi2c->i2c_ssr.ssr_lock);
+				atomic_set(&gi2c->is_xfer_in_progress, 0);
+				//return -ENXIO;
+				return ret; //Don't perform xfer is cancel failed
+			}
 		}
 	}
 
