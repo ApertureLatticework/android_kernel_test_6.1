@@ -2311,12 +2311,15 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 	struct dwc3_vendor *vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 	u32 reg;
 	int i;
+	int ret;
 
 	switch (dwc->current_dr_role) {
 	case DWC3_GCTL_PRTCAP_DEVICE:
 		if (pm_runtime_suspended(dwc->dev))
 			break;
-		dwc3_gadget_suspend(dwc);
+		ret = dwc3_gadget_suspend(dwc);
+		if (ret)
+			return ret;
 		synchronize_irq(dwc->irq_gadget);
 		dwc3_core_exit(dwc);
 		break;
