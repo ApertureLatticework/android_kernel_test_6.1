@@ -8,8 +8,10 @@ def define_neo_le():
     _neo_in_tree_modules = [
         # keep sorted
         "drivers/base/regmap/qti-regmap-debugfs.ko",
+	"drivers/bus/mhi/controllers/mhi_cntrl_qcom.ko",
         "drivers/bluetooth/btpower.ko",
         "drivers/bus/mhi/devices/mhi_dev_dtr.ko",
+	"drivers/bus/mhi/devices/mhi_dev_netdev.ko",
         "drivers/bus/mhi/devices/mhi_dev_uci.ko",
         "drivers/bus/mhi/host/mhi.ko",
         "drivers/char/rdbg.ko",
