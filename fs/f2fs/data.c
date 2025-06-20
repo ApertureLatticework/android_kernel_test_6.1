@@ -4235,7 +4235,13 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		iomap->bdev = map.m_bdev;
 		iomap->addr = blks_to_bytes(inode, map.m_pblk);
 	} else {
-		if (flags & IOMAP_WRITE)
+
+	/*
+	 * If the blocks being overwritten are already allocated,
+	 * f2fs_map_lock and f2fs_balance_fs are not necessary.
+	 */
+	if ((flags & IOMAP_WRITE) &&
+		!f2fs_overwrite_io(inode, offset, length))
 			return -ENOTBLK;
 		iomap->length = blks_to_bytes(inode, next_pgofs) -
 				iomap->offset;
