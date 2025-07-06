@@ -126,3 +126,7 @@ config EROFS_FS_PCPU_KTHREAD_HIPRI
 	  at higher priority.
 
 	  If unsure, say N.
+
+config EROFS_FS_THREAD_OPT
+	bool "EROFS high priority per-CPU kthread workers"
+	depends on EROFS_FS_PCPU_KTHREAD
