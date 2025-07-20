@@ -1779,7 +1779,6 @@ static int sdhci_msm_set_pincfg(struct sdhci_msm_host *msm_host, bool level)
 	return ret;
 }
 
-<<<<<<< HEAD
 static int sdhci_msm_dt_parse_hsr_info(struct device *dev,
 		struct sdhci_msm_host *msm_host)
 
