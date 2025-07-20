@@ -254,8 +254,8 @@ static struct llcc_edac_reg_data *edac_reg_data = edac_reg_data_v2;
 
 static int qcom_llcc_core_setup(struct regmap *llcc_bcast_regmap)
 {
-	struct device *dev = llcc_bcast_regmap_dev;
-	struct qcom_edac_drvdata *drv = drv_get_drvdata(dev);
+	struct device *dev = llcc_bcast_regmap->dev;
+	struct qcom_edac_drvdata *drv = dev_get_drvdata(dev);
 	u32 sb_err_threshold;
 	int ret;
 
