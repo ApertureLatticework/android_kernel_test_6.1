@@ -1904,8 +1904,6 @@ static int sdhci_msm_set_vmmc(struct mmc_host *mmc)
 	if (IS_ERR(mmc->supply.vmmc))
 		return 0;
 
-	msm_config_vmmc_regulator(mmc, hpm);
-
 	return mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, mmc->ios.vdd);
 }
 
