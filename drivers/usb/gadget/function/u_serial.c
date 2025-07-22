@@ -291,6 +291,7 @@ __acquires(&port->port_lock)
 	}
 	if (do_tty_wake)
 		tty_port_tty_wakeup(&port->port);
+	return status;
 }
 
 /*
