@@ -1,118 +1,37 @@
 ---
- arch/arm64/configs/vendor/neo_la_GKI.config | 5 +++++
- arch/arm64/configs/vendor/neo_le.config     | 5 +++++
- neo_la.bzl                                  | 5 +++++
- neo_le.bzl                                  | 5 +++++
- 4 files changed, 20 insertions(+)
+ arch/arm64/configs/vendor/seraph_GKI.config | 2 ++
+ seraph.bzl                                  | 1 +
+ 2 files changed, 3 insertions(+)
 
-diff --git a/arch/arm64/configs/vendor/neo_la_GKI.config b/arch/arm64/configs/vendor/neo_la_GKI.config
-index 523ea3ba1634d..eabe98074385e 100644
---- a/arch/arm64/configs/vendor/neo_la_GKI.config
-+++ b/arch/arm64/configs/vendor/neo_la_GKI.config
-@@ -30,6 +30,7 @@ CONFIG_EDAC_KRYO_ARM64_PANIC_ON_UE=y
- CONFIG_EDAC_QCOM=m
- # CONFIG_EDAC_QCOM_LLCC_PANIC_ON_CE is not set
- CONFIG_EDAC_QCOM_LLCC_PANIC_ON_UE=y
-+CONFIG_EP_PCIE=m
- # CONFIG_GH_CTRL is not set
- # CONFIG_GH_DBL is not set
- # CONFIG_GH_GUEST_POPS is not set
-@@ -68,6 +69,8 @@ CONFIG_MFD_SPMI_PMIC=m
- CONFIG_MHI_BUS=m
- CONFIG_MHI_BUS_MISC=y
- CONFIG_MHI_DTR=m
-+CONFIG_MHI_NETDEV=m
-+CONFIG_MHI_QCOM=m
- CONFIG_MHI_UCI=m
- CONFIG_MINIDUMP_MAX_ENTRIES=200
- CONFIG_MMC_CQHCI=m
-@@ -77,6 +80,8 @@ CONFIG_MMC_SDHCI_MSM=m
- CONFIG_MSM_BOOT_STATS=m
- CONFIG_MSM_CORE_HANG_DETECT=m
- CONFIG_MSM_GPI_DMA=m
-+CONFIG_MSM_MHI_DEV=m
-+CONFIG_MSM_MHI_NET_DEV=m
- CONFIG_MSM_PERFORMANCE=m
- CONFIG_MSM_POWER_STATE=m
- CONFIG_MSM_QMP=m
-diff --git a/arch/arm64/configs/vendor/neo_le.config b/arch/arm64/configs/vendor/neo_le.config
-index 5386963d2a494..96ed3075c8725 100644
---- a/arch/arm64/configs/vendor/neo_le.config
-+++ b/arch/arm64/configs/vendor/neo_le.config
-@@ -49,6 +49,7 @@ CONFIG_EDAC_KRYO_ARM64_PANIC_ON_UE=y
- CONFIG_EDAC_QCOM=m
- # CONFIG_EDAC_QCOM_LLCC_PANIC_ON_CE is not set
- CONFIG_EDAC_QCOM_LLCC_PANIC_ON_UE=y
-+CONFIG_EP_PCIE=m
- # CONFIG_EXT4_DEBUG is not set
- CONFIG_EXT4_FS=y
- CONFIG_EXT4_FS_POSIX_ACL=y
-@@ -118,6 +119,8 @@ CONFIG_MHI_BUS=m
- # CONFIG_MHI_BUS_DEBUG is not set
- CONFIG_MHI_BUS_MISC=y
- CONFIG_MHI_DTR=m
-+CONFIG_MHI_NETDEV=m
-+CONFIG_MHI_QCOM=m
- # CONFIG_MHI_SATELLITE is not set
- CONFIG_MHI_UCI=m
- CONFIG_MINIDUMP_MAX_ENTRIES=200
-@@ -151,6 +154,8 @@ CONFIG_MSM_GPI_DMA=m
- # CONFIG_MSM_GPI_DMA_DEBUG is not set
- # CONFIG_MSM_GPUCC_8998 is not set
- # CONFIG_MSM_LCC_8960 is not set
-+CONFIG_MSM_MHI_DEV=m
-+CONFIG_MSM_MHI_NET_DEV=m
- # CONFIG_MSM_MMCC_8960 is not set
- # CONFIG_MSM_MMCC_8974 is not set
- # CONFIG_MSM_MMCC_8996 is not set
-diff --git a/neo_la.bzl b/neo_la.bzl
-index 6de1314961027..0bc502843c4ea 100644
---- a/neo_la.bzl
-+++ b/neo_la.bzl
-@@ -8,7 +8,9 @@ def define_neo_la():
-     _neo_in_tree_modules = [
-         # keep sorted
-         "drivers/base/regmap/qti-regmap-debugfs.ko",
-+        "drivers/bus/mhi/controllers/mhi_cntrl_qcom.ko",
-         "drivers/bus/mhi/devices/mhi_dev_dtr.ko",
-+        "drivers/bus/mhi/devices/mhi_dev_netdev.ko",
-         "drivers/bus/mhi/devices/mhi_dev_uci.ko",
-         "drivers/bus/mhi/host/mhi.ko",
-         "drivers/char/rdbg.ko",
-@@ -85,6 +87,9 @@ def define_neo_la():
-         "drivers/pinctrl/qcom/pinctrl-neo.ko",
-         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
-         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
-+        "drivers/platform/msm/ep_pcie/ep_pcie_drv.ko",
-+        "drivers/platform/msm/mhi_dev/mhi_dev_drv.ko",
-+        "drivers/platform/msm/mhi_dev/mhi_dev_net.ko",
-         "drivers/power/reset/qcom-dload-mode.ko",
-         "drivers/power/reset/qcom-pon.ko",
-         "drivers/power/reset/qcom-reboot-reason.ko",
-diff --git a/neo_le.bzl b/neo_le.bzl
-index 68ac4e38e8f84..231e2c2b27da1 100644
---- a/neo_le.bzl
-+++ b/neo_le.bzl
-@@ -9,7 +9,9 @@ def define_neo_le():
-         # keep sorted
-         "drivers/base/regmap/qti-regmap-debugfs.ko",
-         "drivers/base/regmap/regmap-spmi.ko",
-+        "drivers/bus/mhi/controllers/mhi_cntrl_qcom.ko",
-         "drivers/bus/mhi/devices/mhi_dev_dtr.ko",
-+        "drivers/bus/mhi/devices/mhi_dev_netdev.ko",
-         "drivers/bus/mhi/devices/mhi_dev_uci.ko",
-         "drivers/bus/mhi/host/mhi.ko",
-         "drivers/char/rdbg.ko",
-@@ -89,6 +91,9 @@ def define_neo_le():
-         "drivers/pinctrl/qcom/pinctrl-neo.ko",
-         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
-         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
-+        "drivers/platform/msm/ep_pcie/ep_pcie_drv.ko",
-+        "drivers/platform/msm/mhi_dev/mhi_dev_drv.ko",
-+        "drivers/platform/msm/mhi_dev/mhi_dev_net.ko",
-         "drivers/power/reset/qcom-dload-mode.ko",
-         "drivers/power/reset/qcom-reboot-reason.ko",
-         "drivers/power/supply/bq256xx_charger.ko",
+diff --git a/arch/arm64/configs/vendor/seraph_GKI.config b/arch/arm64/configs/vendor/seraph_GKI.config
+index 450785d5c7bf9..0e0171b81b45f 100644
+--- a/arch/arm64/configs/vendor/seraph_GKI.config
++++ b/arch/arm64/configs/vendor/seraph_GKI.config
+@@ -1,3 +1,4 @@
++
+ CONFIG_ARCH_QCOM=y
+ CONFIG_ARCH_SERAPH=y
+ CONFIG_ARM_QCOM_CPUFREQ_HW=m
+@@ -152,6 +153,7 @@ CONFIG_QCOM_IPCC=m
+ CONFIG_QCOM_IRQ_STAT=y
+ CONFIG_QCOM_LAZY_MAPPING=m
+ CONFIG_QCOM_LLCC=m
++CONFIG_QCOM_LLCC_PERFMON=m
+ CONFIG_QCOM_LLCC_PMU=m
+ CONFIG_QCOM_LOGBUF_BOOTLOG=m
+ CONFIG_QCOM_LOGBUF_VENDOR_HOOKS=m
+diff --git a/seraph.bzl b/seraph.bzl
+index 52d5cec1ac949..17c88612f404c 100644
+--- a/seraph.bzl
++++ b/seraph.bzl
+@@ -133,6 +133,7 @@ def define_seraph():
+         "drivers/soc/qcom/hung_task_enh.ko",
+         "drivers/soc/qcom/hwkm.ko",
+         "drivers/soc/qcom/llcc-qcom.ko",
++        "drivers/soc/qcom/llcc_perfmon.ko",
+         "drivers/soc/qcom/mdt_loader.ko",
+         "drivers/soc/qcom/mem-hooks.ko",
+         "drivers/soc/qcom/mem-offline.ko",
 -- 
 GitLab
 
