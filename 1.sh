@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eu
+
 # 环境变量设置
 TIMESTAMP="2025-07-20 04:24:35"
 CURRENT_USER="SekaiMoe"
