@@ -2838,18 +2838,8 @@ static int geni_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		}
 		if (ret) {
 			if (gi2c->se_mode == FIFO_SE_DMA) {
-				gi2c->err = -EBUSY;
-				if (gi2c->bus_recovery_enable) {
-					ret = geni_i2c_bus_recovery(gi2c);
-					if (ret)
-						GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
-							    "%s:Bus Recovery failed\n", __func__);
-					gi2c->err = 0;
-				} else {
-					GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
-						    "Bus Recovery not enabled\n");
-					ret = -ENXIO;
-				}
+				/* Initiate bus recovery only in Non-GSI mode  */
+				ret = i2c_initiate_bus_recovery(gi2c);
 			} else {
 				I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 					    "Bus Recovery not supported for GSI\n");
@@ -2864,16 +2854,16 @@ static int geni_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 				}
 				mutex_unlock(&gi2c->i2c_ssr.ssr_lock);
 				atomic_set(&gi2c->is_xfer_in_progress, 0);
-				//return -ENXIO;
 				return ret; //Don't perform xfer is cancel failed
 			}
 		}
 	}
 
 	geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
-	if (!gi2c->is_shared && ((geni_ios & 0x3) != 0x3)) {//SCL:b'1, SDA:b'0
+	if (!gi2c->is_shared && !IS_I2C_BUS_IDLE(geni_ios)) {
 		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
-			    "IO lines in bad state, Power the slave\n");
+			"IO lines in bad state, Power the slave: geni_ios:%d\n",
+			geni_ios);
 #ifdef OPLUS_FEATURE_CHG_BASIC
 		for (i = 0; i < num; i++) {
 			if (msgs[i].addr == FG_DEVICE_ADDR) {
