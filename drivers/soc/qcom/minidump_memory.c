@@ -355,7 +355,7 @@ static void update_dump_size(char *name, size_t size, char **addr, size_t *dump_
 #ifdef CONFIG_PAGE_OWNER
 static unsigned long page_owner_filter = 0xF;
 static unsigned long page_owner_handles_size =  SZ_16K;
-static int nr_page_owner_handles, nr_slab_owner_handles;
+static int nr_page_owner_handles;
 static LIST_HEAD(accounted_call_site_list);
 static DEFINE_SPINLOCK(accounted_call_site_lock);
 struct accounted_call_site {
@@ -371,9 +371,6 @@ bool is_page_owner_enabled(void)
 	return false;
 
 }
-#endif
-
-static int nr_slab_owner_handles;
 
 static bool found_stack(depot_stack_handle_t handle,
 		 char *dump_addr, size_t dump_size,
@@ -397,7 +394,6 @@ static bool found_stack(depot_stack_handle_t handle,
 	return false;
 }
 
-#ifdef CONFIG_PAGE_OWNER
 static bool check_unaccounted(char *buf, ssize_t count,
 		struct page *page, depot_stack_handle_t handle)
 {
@@ -781,6 +777,7 @@ void md_debugfs_pageowner(struct dentry *minidump_dir)
 
 static unsigned long slab_owner_filter;
 static unsigned long slab_owner_handles_size = SZ_16K;
+static int nr_slab_owner_handles;
 
 bool is_slub_debug_enabled(void)
 {
@@ -813,13 +810,16 @@ static int dump_tracking(const struct kmem_cache *s,
 		nr_entries = stack_depot_fetch(t->handle, &entries);
 
 		if ((buf > (md_slabowner_dump_addr +
+#ifdef CONFIG_PAGE_OWNER
 			md_slabowner_dump_size - slab_owner_handles_size))
 			|| !found_stack(t->handle,
 				md_slabowner_dump_addr,
 				md_slabowner_dump_size,
 				slab_owner_handles_size,
 				&nr_slab_owner_handles)) {
-
+#else
+			|| false) {
+#endif
 			ret = scnprintf(buf, size, "%p %p %u\n",
 				object, t->handle, nr_entries);
 			if (ret == size - 1)
