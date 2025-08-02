@@ -658,12 +658,12 @@ static bool adios_bio_merge(struct request_queue *q, struct bio *bio,
 
 // Insert a request into the scheduler
 static void insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
-				  blk_insert_t insert_flags, struct list_head *free) {
+				  blk_short_t insert_flags, struct list_head *free) {
 	bool dl_idx = adios_optype_not_read(rq);
 	struct request_queue *q = hctx->queue;
 	struct adios_data *ad = q->elevator->elevator_data;
 
-	if (insert_flags & BLK_MQ_INSERT_AT_HEAD) {
+	if (insert_flags & BLK_MQ_REQ_RESERVED) {
 		scoped_guard(spinlock_irqsave, &ad->pq_lock)
 			list_add_tail(&rq->queuelist, &ad->prio_queue);
 		return;
@@ -684,7 +684,7 @@ static void insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 // Insert multiple requests into the scheduler
 static void adios_insert_requests(struct blk_mq_hw_ctx *hctx,
 				   struct list_head *list,
-				   blk_insert_t insert_flags) {
+				   bool insert_flags) {
 	struct request_queue *q = hctx->queue;
 	struct adios_data *ad = q->elevator->elevator_data;
 	struct request *rq;
@@ -1049,7 +1049,7 @@ put_eq:
 static void adios_exit_sched(struct elevator_queue *e) {
 	struct adios_data *ad = e->elevator_data;
 
-	timer_shutdown_sync(&ad->update_timer);
+	del_timer_sync(&ad->update_timer);
 
 	WARN_ON_ONCE(!list_empty(&ad->prio_queue));
 
