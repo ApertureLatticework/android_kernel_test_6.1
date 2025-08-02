@@ -27,4 +27,7 @@ jobs:
       run: make CC="ccache clang" LD=ld.lld HOSTCC="ccache clang" O=out KCFLAGS+=-Wno-error gki_defconfig vendor/pineapple_GKI.config vendor/oplus/pineapple_GKI.config -j8
     - name: Build
       run: make CC="ccache clang" LD=ld.lld HOSTCC="ccache clang" O=out KCFLAGS+=-Wno-error all -j8
-      
+    - uses: actions/upload-artifact@v4
+      with:
+        name: boot
+        path: out/arch/arm64/boot/Image
