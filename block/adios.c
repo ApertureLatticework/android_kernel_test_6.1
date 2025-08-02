@@ -874,7 +874,7 @@ found:
 
 // Timer callback function to periodically update latency models
 static void update_timer_callback(struct timer_list *t) {
-	struct adios_data *ad = timer_container_of(ad, t, update_timer);
+	struct adios_data *ad = from_timer(ad, t, update_timer);
 
 	for (u8 optype = 0; optype < ADIOS_OPTYPES; optype++)
 		latency_model_update(ad, &ad->latency_model[optype]);
