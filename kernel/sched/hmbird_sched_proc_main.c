@@ -9,7 +9,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
-#include "slim.h"
+#include "hmbird_sched_proc.h"
 
 #define HMBIRD_SCHED_PROC_DIR "hmbird_sched"
 #define SLIM_FREQ_GOV_DIR       "slim_freq_gov"
@@ -45,37 +45,30 @@ int heartbeat;
 int heartbeat_enable;
 int watchdog_enable;
 int save_gov;
-unsigned long long cpu_cluster_masks;
+unsigned int cpu_cluster_masks;
 
 char saved_gov[NR_CPUS][16];
 
-noinline int tracing_mark_write(const char *buf)
+static int set_proc_buf_val(struct file *file, const char __user *buf, size_t count, int *val)
 {
-    trace_printk(buf);
-    return 0;
-}
+	char kbuf[5] = {0};
+	int err;
 
-static int set_proc_buf_val(struct file *file, const char __user *buf, size_t count, unsigned long long *val)
-{
-    char kbuf[20] = {0}; // 增加缓冲区大小以容纳大数字
-    int err;
-
-    if (count >= sizeof(kbuf)) {
-        return -EFAULT;
-    }
+	if (count >= 5)
+		return -EFAULT;
 
 	if (copy_from_user(kbuf, buf, count)) {
 		pr_err("hmbird_sched : Failed to copy_from_user\n");
 		return -EFAULT;
 	}
 
-    err = kstrtoull(strstrip(kbuf), 0, val);
-    if (err) {
-		pr_err("hmbird_sched: Failed to exec kstrtoull\n");
-        return -EFAULT;
-    }
+	err = kstrtoint(strstrip(kbuf), 0, val);
+	if (err < 0) {
+		pr_err("hmbird_sched: Failed to exec kstrtoint\n");
+		return -EFAULT;
+	}
 
-    return 0;
+	return 0;
 }
 
 /* common ops begin */
@@ -83,7 +76,7 @@ static ssize_t hmbird_common_write(struct file *file,
 				   const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	unsigned long long *pval = (unsigned long long *)pde_data(file_inode(file));
+	int *pval = (int *)pde_data(file_inode(file));
 
 	if (set_proc_buf_val(file, buf, count, pval))
 		return -EFAULT;
@@ -93,12 +86,8 @@ static ssize_t hmbird_common_write(struct file *file,
 
 static int hmbird_common_show(struct seq_file *m, void *v)
 {
-    if (m->private == &cpu_cluster_masks) {
-        seq_printf(m, "%llu\n", *(unsigned long long *)m->private);
-    } else {
-        seq_printf(m, "%d\n", *(int *)m->private);
-    }
-    return 0;
+	seq_printf(m, "%d\n", *(int *) m->private);
+	return 0;
 }
 
 static int hmbird_common_open(struct inode *inode, struct file *file)
@@ -112,7 +101,7 @@ HMBIRD_PROC_OPS(hmbird_common, hmbird_common_open, hmbird_common_write);
 static ssize_t scx_enable_proc_write(struct file *file, const char __user *buf,
 								size_t count, loff_t *ppos)
 {
-	unsigned long long *pval = (unsigned long long *)pde_data(file_inode(file));
+	int *pval = (int *)pde_data(file_inode(file));
 
 	if (set_proc_buf_val(file, buf, count, pval))
 		return -EFAULT;
@@ -143,7 +132,7 @@ HMBIRD_PROC_OPS(hmbird_stats, hmbird_stats_proc_open, NULL);
 static ssize_t sched_ravg_window_frame_per_sec_proc_write(struct file *file,
 			const char __user *buf, size_t count, loff_t *ppos)
 {
-	unsigned long long *pval = (unsigned long long *)pde_data(file_inode(file));
+	int *pval = (int *)pde_data(file_inode(file));
 
 	if (set_proc_buf_val(file, buf, count, pval))
 		return -EFAULT;
@@ -172,8 +161,12 @@ HMBIRD_PROC_OPS(save_gov, hmbird_common_open, save_gov_str);
 static ssize_t cpu_cluster_proc_write(struct file *file, const char __user *buf,
 								size_t count, loff_t *ppos)
 {
-    unsigned long long *pval = (unsigned long long *)pde_data(file_inode(file));
-    return set_proc_buf_val(file, buf, count, pval);
+	int *pval = (int *)pde_data(file_inode(file));
+
+	if (set_proc_buf_val(file, buf, count, pval))
+		return -EFAULT;
+
+	return count;
 }
 HMBIRD_PROC_OPS(cpu_cluster_masks, hmbird_common_open, cpu_cluster_proc_write);
 
@@ -181,7 +174,7 @@ HMBIRD_PROC_OPS(cpu_cluster_masks, hmbird_common_open, cpu_cluster_proc_write);
 static ssize_t slim_walt_ctrl_write(struct file *file, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	unsigned long long *pval = (unsigned long long *)pde_data(file_inode(file));
+	int *pval = (int *)pde_data(file_inode(file));
 
 	if (set_proc_buf_val(file, buf, count, pval))
 		return -EFAULT;
