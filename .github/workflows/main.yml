@@ -24,10 +24,18 @@ jobs:
         key: 11451419190810
         max-size: 1536M
     - name: Configure
-      run: make CC="ccache clang" LD=ld.lld HOSTCC="ccache clang" O=out KCFLAGS+=-Wno-error gki_defconfig vendor/pineapple_GKI.config vendor/oplus/pineapple_GKI.config -j8
+      run: make CC="ccache clang" LD=ld.lld HOSTCC="ccache clang" O=out KCFLAGS+=-Wno-error gki_defconfig vendor/pineapple_GKI.config vendor/oplus/pineapple_GKI.config -j8 >/dev/null
     - name: Build
       run: make CC="ccache clang" LD=ld.lld HOSTCC="ccache clang" O=out KCFLAGS+=-Wno-error all -j8
     - uses: actions/upload-artifact@v4
       with:
         name: boot
         path: out/arch/arm64/boot/Image
+    - uses: actions/upload-artifact@v4
+      with:
+        name: modules
+        path: out/Modules.*
+    - uses: actions/upload-artifact@v4
+      with:
+        name: maps
+        path: out/System.map
