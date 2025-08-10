@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
+    container: debian:sid
 
     strategy:
       # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
@@ -17,7 +18,8 @@ jobs:
     - uses: actions/checkout@v4
     - name: Setup LLVM
       run: |
-        sudo apt-get install curl bison flex make binutils dwarves git lld pahole zip perl make gcc python3 python-is-python3 bc libssl-dev libelf-dev clang ccache -y
+        apt-get update
+        apt-get install curl bison flex make binutils dwarves git lld pahole zip perl make gcc python3 python-is-python3 bc libssl-dev libelf-dev clang ccache cpio tar xz-utils -y
     - uses: hendrikmuhs/ccache-action@v1.2
       with:
         create-symlink: true
@@ -27,14 +29,14 @@ jobs:
       run: make CC="ccache clang" LD=ld.lld HOSTCC="ccache clang" O=out KCFLAGS+=-Wno-error gki_defconfig vendor/pineapple_GKI.config vendor/oplus/pineapple_GKI.config -j8 >/dev/null
     - name: Build
       run: make CC="ccache clang" LD=ld.lld HOSTCC="ccache clang" O=out KCFLAGS+=-Wno-error all -j8
+    - name: clean
+      run: |
+        rm -rf -v $(find out -name *.o)
+        rm -rf -v $(find out -name *.a)
     - uses: actions/upload-artifact@v4
       with:
         name: boot
         path: out/arch/arm64/boot/Image
-    - uses: actions/upload-artifact@v4
-      with:
-        name: modules
-        path: out/Modules.*
     - uses: actions/upload-artifact@v4
       with:
         name: maps
