@@ -37,7 +37,6 @@
 #define SE_I2C_TX_TRANS_LEN		(0x26C)
 #define SE_I2C_RX_TRANS_LEN		(0x270)
 #define SE_I2C_SCL_COUNTERS		(0x278)
-#define SE_GENI_M_GP_LENGTH		(0x910)
 
 /* M_CMD OP codes for I2C */
 #define I2C_WRITE		(0x1)
@@ -124,6 +123,11 @@ if (dev) \
 
 #define MIN_NUM_MSGS_FOR_MULTI_DESC_MODE	4
 #define BOOT_MARKER_SIZE	50
+
+#define IS_I2C_BUS_IDLE(geni_ios) (((geni_ios) & 3) == 0x3)
+#define SCL_SDA_MASK		3
+#define I2C_SCL_HIGH_SDA_LOW    0x2
+#define I2C_SCL_HIGH_SDA_HIGH   0x3
 
 /* FTRACE Logging */
 void i2c_trace_log(struct device *dev, const char *fmt, ...)
@@ -2770,6 +2774,31 @@ geni_i2c_execute_xfer_exit:
 	return ret;
 }
 
+static int i2c_initiate_bus_recovery(struct geni_i2c_dev *gi2c)
+{
+	int ret = 0;
+	u32 geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
+
+	if ((geni_ios & SCL_SDA_MASK) != I2C_SCL_HIGH_SDA_LOW)
+		return 0;
+
+	gi2c->err = -EBUSY;
+	if (!gi2c->bus_recovery_enable) {
+		GENI_SE_ERR(gi2c->ipcl, false, gi2c->dev, "Bus Recovery not enabled\n");
+		return -ENXIO;
+	}
+
+	ret = geni_i2c_bus_recovery(gi2c);
+	if (ret) {
+		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev, "%s:Bus Recovery failed\n", __func__);
+		return ret;
+	}
+
+	gi2c->err = 0;
+
+	return ret;
+}
+
 /**
  * geni_i2c_xfer() - Performs non GSI mode data transfer
  * @adap: Master controller handle
@@ -2838,21 +2867,33 @@ static int geni_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			return 0;
 		}
 		if (ret) {
-			/* for levm skip auto suspend timer */
-			if (!gi2c->is_le_vm) {
-				pm_runtime_mark_last_busy(gi2c->dev);
-				pm_runtime_put_autosuspend(gi2c->dev);
+			if (gi2c->se_mode == FIFO_SE_DMA) {
+				/* Initiate bus recovery only in Non-GSI mode  */
+				ret = i2c_initiate_bus_recovery(gi2c);
+			} else {
+				I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+					    "Bus Recovery not supported for GSI\n");
+				ret = -ENXIO;
 			}
-			mutex_unlock(&gi2c->i2c_ssr.ssr_lock);
-			atomic_set(&gi2c->is_xfer_in_progress, 0);
-			return ret; //Don't perform xfer is cancel failed
+
+			if (gi2c->se_mode == GSI_ONLY || ret) {
+				/* for levm skip auto suspend timer */
+				if (!gi2c->is_le_vm) {
+					pm_runtime_mark_last_busy(gi2c->dev);
+					pm_runtime_put_autosuspend(gi2c->dev);
+				}
+				mutex_unlock(&gi2c->i2c_ssr.ssr_lock);
+				atomic_set(&gi2c->is_xfer_in_progress, 0);
+				return ret; //Don't perform xfer is cancel failed
+			}
 		}
 	}
 
 	geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
-	if (!gi2c->is_shared && ((geni_ios & 0x3) != 0x3)) {//SCL:b'1, SDA:b'0
+	if (!gi2c->is_shared && !IS_I2C_BUS_IDLE(geni_ios)) {
 		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev,
-			    "IO lines in bad state, Power the slave\n");
+			"IO lines in bad state, Power the slave: geni_ios:%d\n",
+			geni_ios);
 #ifdef OPLUS_FEATURE_CHG_BASIC
 		for (i = 0; i < num; i++) {
 			if (msgs[i].addr == FG_DEVICE_ADDR) {
@@ -3089,7 +3130,7 @@ static int geni_i2c_resources_init(struct platform_device *pdev, struct geni_i2c
 
 	irq_set_status_flags(gi2c->irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(gi2c->dev, gi2c->irq, geni_i2c_irq,
-			       IRQF_NOBALANCING, "i2c_geni", gi2c);
+			       0, "i2c_geni", gi2c);
 	if (ret) {
 		dev_err(gi2c->dev, "Request_irq failed:%d: err:%d\n",
 			gi2c->irq, ret);
@@ -3209,7 +3250,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "%s:I2C Bus recovery enabled\n", __func__);
 	}
 
-	ret = dma_set_mask_and_coherent(&pdev->dev, ~0ULL);
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
