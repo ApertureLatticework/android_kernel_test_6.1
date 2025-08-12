@@ -713,7 +713,7 @@ config HAS_LTO_CLANG
 
 choice
 	prompt "Link Time Optimization (LTO)"
-	default LTO_THIN
+	default LTO_CLANG_THIN
 	help
 	  This option enables Link Time Optimization (LTO), which allows the
 	  compiler to optimize binaries globally.

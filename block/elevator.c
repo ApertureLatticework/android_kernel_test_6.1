@@ -639,7 +639,7 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 		return NULL;
 
 #ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
-	return elevator_find_get("adios");
+	return elevator_find("adios", 0);
 #else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 
 	if (q->nr_hw_queues != 1 &&
