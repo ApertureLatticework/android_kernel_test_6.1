@@ -57,6 +57,7 @@ config ZRAM_DEF_COMP
 	default "lz4" if ZRAM_DEF_COMP_LZ4
 	default "lzo" if ZRAM_DEF_COMP_LZO
 	default "lz4hc" if ZRAM_DEF_COMP_LZ4HC
+	default "lz4p" if ZRAM_DEF_COMP_LZ4P
 	default "842" if ZRAM_DEF_COMP_842
 
 config ZRAM_WRITEBACK
@@ -82,3 +83,10 @@ config ZRAM_MEMORY_TRACKING
 	  /sys/kernel/debug/zram/zramX/block_state.
 
 	  See Documentation/admin-guide/blockdev/zram.rst for more information.
+
+config ZRAM_LZ4P
+	bool "LZ4P zram compression algorithm from XRING team"
+	default n
+	help
+	  Choose this option to enable zram lz4p.
+	  When enable this option, ZRAM enables LZ4P compress and decompress algorithm.
