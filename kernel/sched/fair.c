@@ -979,6 +979,20 @@ void post_init_entity_util_avg(struct task_struct *p)
 	long cpu_scale = arch_scale_cpu_capacity(cpu_of(rq_of(cfs_rq)));
 	long cap = (long)(cpu_scale - cfs_rq->avg.util_avg) / 2;
 
+	if (cap > 0) {
+		if (cfs_rq->avg.util_avg != 0) {
+			sa->util_avg  = cfs_rq->avg.util_avg * se_weight(se);
+			sa->util_avg /= (cfs_rq->avg.load_avg + 1);
+
+			if (sa->util_avg > cap)
+				sa->util_avg = cap;
+		} else {
+			sa->util_avg = cap;
+		}
+	}
+
+	sa->runnable_avg = sa->util_avg;
+
 	if (p->sched_class != &fair_sched_class) {
 		/*
 		 * For !fair tasks do:
@@ -5092,13 +5106,7 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	s64 delta;
 	bool skip_preempt = false;
 
-	/*
-	 * When many tasks blow up the sched_period; it is possible that
-	 * sched_slice() reports unusually large results (when many tasks are
-	 * very light for example). Therefore impose a maximum.
-	 */
-	ideal_runtime = min_t(u64, sched_slice(cfs_rq, curr), sysctl_sched_latency);
-
+	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
 	trace_android_rvh_check_preempt_tick(current, &ideal_runtime, &skip_preempt,
 			delta_exec, cfs_rq, curr, sysctl_sched_min_granularity);
@@ -5161,8 +5169,8 @@ void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		struct sched_statistics *stats;
 
 		stats = __schedstats_from_se(se);
-		__schedstat_set(stats->slice_max,
-				max((u64)stats->slice_max,
+		schedstat_set(stats->slice_max,
+			max((u64)schedstat_val(stats->slice_max),
 				    se->sum_exec_runtime - se->prev_sum_exec_runtime));
 	}
 
@@ -10797,11 +10805,8 @@ static int should_we_balance(struct lb_env *env)
 	 * However, we bail out if we already have tasks or a wakeup pending,
 	 * to optimize wakeup latency.
 	 */
-	if (env->idle == CPU_NEWLY_IDLE) {
-		if (env->dst_rq->nr_running > 0 || env->dst_rq->ttwu_pending)
-			return 0;
+	if (env->idle == CPU_NEWLY_IDLE)
 		return 1;
-	}
 
 	/* Try to find first idle CPU */
 	for_each_cpu_and(cpu, group_balance_mask(sg), env->cpus) {

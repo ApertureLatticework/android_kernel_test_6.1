@@ -27,7 +27,7 @@ unsigned int sysctl_sched_rt_period = 1000000;
 int sysctl_sched_rt_runtime = 950000;
 
 #ifdef CONFIG_SYSCTL
-static int sysctl_sched_rr_timeslice = (MSEC_PER_SEC * RR_TIMESLICE) / HZ;
+static int sysctl_sched_rr_timeslice = (MSEC_PER_SEC / HZ) * RR_TIMESLICE;
 static int sched_rt_handler(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 static int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
@@ -486,7 +486,7 @@ static inline void rt_queue_push_tasks(struct rq *rq)
 #endif /* CONFIG_SMP */
 
 static void enqueue_top_rt_rq(struct rt_rq *rt_rq);
-static void dequeue_top_rt_rq(struct rt_rq *rt_rq, unsigned int count);
+static void dequeue_top_rt_rq(struct rt_rq *rt_rq);
 
 static inline int on_rt_rq(struct sched_rt_entity *rt_se)
 {
@@ -515,7 +515,7 @@ static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
 	unsigned int cpu_cap;
 
 	/* Only heterogeneous systems can benefit from this check */
-	if (!sched_asym_cpucap_active())
+	if (!static_branch_unlikely(&sched_asym_cpucapacity))
 		return true;
 
 	min_cap = uclamp_eff_value(p, UCLAMP_MIN);
@@ -607,7 +607,7 @@ static void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 	rt_se = rt_rq->tg->rt_se[cpu];
 
 	if (!rt_se) {
-		dequeue_top_rt_rq(rt_rq, rt_rq->rt_nr_running);
+		dequeue_top_rt_rq(rt_rq);
 		/* Kick cpufreq (see the comment in kernel/sched/sched.h). */
 		cpufreq_update_util(rq_of_rt_rq(rt_rq), 0);
 	}
@@ -693,7 +693,7 @@ static inline void sched_rt_rq_enqueue(struct rt_rq *rt_rq)
 
 static inline void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 {
-	dequeue_top_rt_rq(rt_rq, rt_rq->rt_nr_running);
+	dequeue_top_rt_rq(rt_rq);
 }
 
 static inline int rt_rq_throttled(struct rt_rq *rt_rq)
@@ -927,7 +927,6 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 		int enqueue = 0;
 		struct rt_rq *rt_rq = sched_rt_period_rt_rq(rt_b, i);
 		struct rq *rq = rq_of_rt_rq(rt_rq);
-		struct rq_flags rf;
 		int skip;
 
 		/*
@@ -942,7 +941,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 		if (skip)
 			continue;
 
-		rq_lock(rq, &rf);
+		raw_spin_rq_lock(rq);
 		update_rq_clock(rq);
 
 		if (rt_rq->rt_time) {
@@ -980,7 +979,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 
 		if (enqueue)
 			sched_rt_rq_enqueue(rt_rq);
-		rq_unlock(rq, &rf);
+		raw_spin_rq_unlock(rq);
 	}
 
 	if (!throttled && (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF))
@@ -1100,7 +1099,7 @@ static void update_curr_rt(struct rq *rq)
 }
 
 static void
-dequeue_top_rt_rq(struct rt_rq *rt_rq, unsigned int count)
+dequeue_top_rt_rq(struct rt_rq *rt_rq)
 {
 	struct rq *rq = rq_of_rt_rq(rt_rq);
 
@@ -1111,7 +1110,7 @@ dequeue_top_rt_rq(struct rt_rq *rt_rq, unsigned int count)
 
 	BUG_ON(!rq->nr_running);
 
-	sub_nr_running(rq, count);
+	sub_nr_running(rq, rt_rq->rt_nr_running);
 	rt_rq->rt_queued = 0;
 
 }
@@ -1497,21 +1496,18 @@ static void __dequeue_rt_entity(struct sched_rt_entity *rt_se, unsigned int flag
 static void dequeue_rt_stack(struct sched_rt_entity *rt_se, unsigned int flags)
 {
 	struct sched_rt_entity *back = NULL;
-	unsigned int rt_nr_running;
 
 	for_each_sched_rt_entity(rt_se) {
 		rt_se->back = back;
 		back = rt_se;
 	}
 
-	rt_nr_running = rt_rq_of_se(back)->rt_nr_running;
+	equeue_top_rt_rq(rt_rq_of_se(back));
 
 	for (rt_se = back; rt_se; rt_se = rt_se->back) {
 		if (on_rt_rq(rt_se))
 			__dequeue_rt_entity(rt_se, flags);
 	}
-
-	dequeue_top_rt_rq(rt_rq_of_se(back), rt_nr_running);
 }
 
 static void enqueue_rt_entity(struct sched_rt_entity *rt_se, unsigned int flags)
