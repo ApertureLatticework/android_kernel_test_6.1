@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -511,8 +511,11 @@ void deinit_aes_encrypt(void)
 	}
 
 	memset(key, 0, AES256_KEY_SIZE);
-	memset(params->key_blob, 0, WRAPPED_KEY_SIZE);
-	kfree(params);
+	if (params) {
+		memset(params->key_blob, 0, WRAPPED_KEY_SIZE);
+		kfree(params);
+		params = NULL;
+	}
 }
 
 static void cleanup_cmp_blk_array(void)
