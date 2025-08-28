@@ -19,7 +19,7 @@ jobs:
     - name: Setup LLVM
       run: |
         apt-get update
-        apt-get install curl bison flex make binutils dwarves git lld pahole zip perl make llvm python3 python-is-python3 bc libssl-dev libelf-dev clang llvm ccache cpio tar xz-utils -y
+        apt-get install curl bison flex make dwarves git lld pahole zip perl make llvm python3 python-is-python3 bc libssl-dev libelf-dev clang llvm ccache cpio tar xz-utils -y
     - uses: hendrikmuhs/ccache-action@v1.2
       with:
         create-symlink: true

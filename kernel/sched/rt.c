@@ -1502,7 +1502,7 @@ static void dequeue_rt_stack(struct sched_rt_entity *rt_se, unsigned int flags)
 		back = rt_se;
 	}
 
-	equeue_top_rt_rq(rt_rq_of_se(back));
+	dequeue_top_rt_rq(rt_rq_of_se(back));
 
 	for (rt_se = back; rt_se; rt_se = rt_se->back) {
 		if (on_rt_rq(rt_se))
