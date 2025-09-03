@@ -530,7 +530,7 @@ static ssize_t show_perf_gfx_evts(struct kobject *kobj,
 	for (idx = 0; idx < size; idx++) {
 		act_idx = (updated_pos.tail + idx) % QUEUE_POOL_SIZE;
 		retval += scnprintf(buf + retval, PAGE_SIZE - retval,
-			  "%d %d %u %d %lu :",
+			  "%d %d %u %d %lld :",
 			  gpu_circ_buff[act_idx].pid,
 			  gpu_circ_buff[act_idx].ctx_id,
 			  gpu_circ_buff[act_idx].timestamp,
