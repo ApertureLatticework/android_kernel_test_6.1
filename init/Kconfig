@@ -1465,7 +1465,7 @@ choice
 	default CC_OPTIMIZE_FOR_PERFORMANCE
 
 config CC_OPTIMIZE_FOR_PERFORMANCE
-	bool "Optimize for performance (-O2)"
+	bool "Optimize for performance (-O3)"
 	help
 	  This is the default optimization level for the kernel, building
 	  with the "-O2" compiler flag for best performance and most
