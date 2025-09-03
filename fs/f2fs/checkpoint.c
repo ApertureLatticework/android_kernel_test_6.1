@@ -346,15 +346,8 @@ static int __f2fs_write_meta_page(struct page *page,
 
 	trace_f2fs_writepage(page, META);
 
-	if (unlikely(f2fs_cp_error(sbi))) {
-		if (is_sbi_flag_set(sbi, SBI_IS_CLOSE)) {
-			ClearPageUptodate(page);
-			dec_page_count(sbi, F2FS_DIRTY_META);
-			unlock_page(page);
-			return 0;
-		}
+	if (unlikely(f2fs_cp_error(sbi)))
 		goto redirty_out;
-	}
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		goto redirty_out;
 	if (wbc->for_reclaim && page->index < GET_SUM_BLOCK(sbi, 0))
