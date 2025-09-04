@@ -638,15 +638,18 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 	if (q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
 		return NULL;
 
-#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
-	return elevator_find("adios", 0);
-#else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
-
 	if (q->nr_hw_queues != 1 &&
 	    !blk_mq_is_shared_tags(q->tag_set->flags))
 		return NULL;
 
+#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
+	return elevator_get(q, "adios", false);
+#else
+#ifdef CONFIG_MQ_IOSCHED_DEFAULT_SSG
+        return elevator_get(q, "ssg", false);
+#else
 	return elevator_get(q, "mq-deadline", false);
+#endif
 #endif
 }
 

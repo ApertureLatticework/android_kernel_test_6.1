@@ -43,3 +43,6 @@ obj-$(CONFIG_BLK_INLINE_ENCRYPTION)	+= blk-crypto.o blk-crypto-profile.o \
 obj-$(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK)	+= blk-crypto-fallback.o
 obj-$(CONFIG_BLOCK_HOLDER_DEPRECATED)	+= holder.o
 
+ssg-$(CONFIG_MQ_IOSCHED_SSG)	:= ssg-iosched.o ssg-stat.o
+ssg-$(CONFIG_MQ_IOSCHED_SSG_CGROUP)	+= ssg-cgroup.o
+obj-$(CONFIG_MQ_IOSCHED_SSG)	+= ssg.o
