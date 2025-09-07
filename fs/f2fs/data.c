@@ -1880,37 +1880,6 @@ static inline u64 blks_to_bytes(struct inode *inode, u64 blks)
 	return (blks << inode->i_blkbits);
 }
 
-static int get_data_block_bmap(struct inode *inode, sector_t iblock,
-        struct buffer_head *bh_result, int create)
-{
-    struct dnode_of_data dn;
-    int ret;
-
-    if (unlikely(iblock >= max_file_blocks(inode)))
-        return -EFBIG;
-
-    /* Get data block address */
-    set_new_dnode(&dn, inode, NULL, NULL, 0);
-    ret = f2fs_get_dnode_of_data(&dn, iblock, 0);
-    if (ret)
-        goto out;
-
-    if (dn.data_blkaddr == NULL_ADDR) {
-        ret = -ENOENT;
-        goto put_dnode;
-    }
-
-    /* Set buffer_head result */
-    set_buffer_mapped(bh_result);
-    bh_result->b_blocknr = dn.data_blkaddr;
-    bh_result->b_size = inode->i_sb->s_blocksize;
-
-put_dnode:
-    f2fs_put_dnode(&dn);
-out:
-    return ret;
-}
-
 static int f2fs_xattr_fiemap(struct inode *inode,
 				struct fiemap_extent_info *fieinfo)
 {
@@ -3854,31 +3823,37 @@ static sector_t f2fs_bmap_compress(struct inode *inode, sector_t block)
 
 static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 {
-    struct inode *inode = mapping->host;
-    sector_t blknr = 0;
-    struct buffer_head bh_result;
+	struct inode *inode = mapping->host;
+	sector_t blknr = 0;
 
-    if (f2fs_has_inline_data(inode))
-        goto out;
+	if (f2fs_has_inline_data(inode))
+		goto out;
 
-    /* make sure allocating whole blocks */
-    if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-        filemap_write_and_wait(mapping);
+	/* make sure allocating whole blocks */
+	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+		filemap_write_and_wait(mapping);
 
-    /* Block number less than F2FS MAX BLOCKS */
-    if (unlikely(block >= max_file_blocks(inode)))
-        goto out;
+	/* Block number less than F2FS MAX BLOCKS */
+	if (unlikely(block >= max_file_blocks(inode)))
+		goto out;
 
-    if (f2fs_compressed_file(inode)) {
-        blknr = f2fs_bmap_compress(inode, block);
-    } else {
-        memset(&bh_result, 0, sizeof(bh_result));
-        if (!get_data_block_bmap(inode, block, &bh_result, 0))
-            blknr = bh_result.b_blocknr;
-    }
+	if (f2fs_compressed_file(inode)) {
+		blknr = f2fs_bmap_compress(inode, block);
+	} else {
+		struct f2fs_map_blocks map;
+
+		memset(&map, 0, sizeof(map));
+		map.m_lblk = block;
+		map.m_len = 1;
+		map.m_next_pgofs = NULL;
+		map.m_seg_type = NO_CHECK_TYPE;
+
+		if (!f2fs_map_blocks(inode, &map, F2FS_GET_BLOCK_BMAP))
+			blknr = map.m_pblk;
+	}
 out:
-    trace_f2fs_bmap(inode, block, blknr);
-    return blknr;
+	trace_f2fs_bmap(inode, block, blknr);
+	return blknr;
 }
 
 #ifdef CONFIG_SWAP
