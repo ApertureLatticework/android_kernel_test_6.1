@@ -3,6 +3,8 @@
 KCOV_INSTRUMENT := n
 KCSAN_SANITIZE := n
 
+ccflags-y += -Wno-format
+
 obj-$(CONFIG_SCHED_WALT) += sched-walt.o
 sched-walt-$(CONFIG_SCHED_WALT) := walt.o boost.o sched_avg.o walt_halt.o core_ctl.o trace.o input-boost.o sysctl.o cpufreq_walt.o fixup.o walt_lb.o walt_rt.o walt_cfs.o walt_tp.o mvp_locking.o
 
