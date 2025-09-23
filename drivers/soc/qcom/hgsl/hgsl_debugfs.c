@@ -153,8 +153,8 @@ int hgsl_debugfs_client_init(struct hgsl_priv *priv)
 	snprintf(name, sizeof(name), "%d", priv->pid);
 	ret = debugfs_create_dir(name,
 				hgsl->clients_debugfs);
-	if (IS_ERR(ret)) {
-		pr_warn("Create debugfs proc node failed.\n");
+	if (IS_ERR_OR_NULL(ret)) {
+		LOGW("Create debugfs proc node failed.");
 		priv->debugfs_client = NULL;
 		return PTR_ERR(ret);
 	} else

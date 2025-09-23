@@ -1899,7 +1899,7 @@ static int msm_pinctrl_hibernation_suspend(void)
 
 	/* All normal gpios will have common registers, first save them */
 	for (i = 0; i < soc->ngpios; i++) {
-		if (!test_bit(i, chip->valid_mask))
+		if (!chip && !test_bit(i, chip->valid_mask))
 			continue;
 
 		pgroup = &soc->groups[i];
@@ -1918,7 +1918,7 @@ static int msm_pinctrl_hibernation_suspend(void)
 	}
 
 	for ( ; i < soc->ngroups; i++) {
-		if (!test_bit(i, chip->valid_mask))
+		if (!chip && !test_bit(i, chip->valid_mask))
 			continue;
 
 		pgroup = &soc->groups[i];
@@ -1960,7 +1960,7 @@ static void msm_pinctrl_hibernation_resume(void)
 
     /* Restore normal gpios */
 	for (i = 0; i < soc->ngpios; i++) {
-		if (!test_bit(i, chip->valid_mask))
+		if (!chip && !test_bit(i, chip->valid_mask))
 			continue;
 
 		pgroup = &soc->groups[i];
@@ -1975,7 +1975,7 @@ static void msm_pinctrl_hibernation_resume(void)
 	}
 
 	for ( ; i < soc->ngroups; i++) {
-		if (!test_bit(i, chip->valid_mask))
+		if (!chip && !test_bit(i, chip->valid_mask))
 			continue;
 
 		pgroup = &soc->groups[i];
