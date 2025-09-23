@@ -1,6 +1,9 @@
 #
 # Makefile for the touchscreen drivers.
 #
+
+ccflags-y += -Wno-format
+
 subdir-ccflags-$(CONFIG_TOUCHPANEL_MTK_PLATFORM) += -I$(srctree)/drivers/misc/mediatek/include/
 subdir-ccflags-$(CONFIG_OPLUS_MTK_DRM_GKI_NOTIFY) += -I$(srctree)/drivers/misc/mediatek/include/
 

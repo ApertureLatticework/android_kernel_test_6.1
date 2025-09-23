@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
+
+ccflags-y += -Wno-format
+
 CFLAGS_fsa4480-i2c.o += -I$(srctree)/drivers/usb/typec/tcpc/inc \
 			-I$(srctree)/drivers/power/oplus/v2/include
 CFLAGS_wcd939x-i2c.o += -I$(srctree)/drivers/power/oplus/v2/include
-
-ccflags-y += -Wno-format
 
 CFLAGS_rpmh-rsc.o := -I$(src)
 obj-$(CONFIG_QCOM_AOSS_QMP) +=	qcom_aoss.o

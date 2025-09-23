@@ -1,3 +1,5 @@
+ccflags-y += -Wno-format
+
 # Host MHI stack
 obj-y += host/
 

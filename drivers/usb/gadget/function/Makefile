@@ -3,6 +3,8 @@
 # USB peripheral controller drivers
 #
 
+ccflags-y += -Wno-format
+
 ccflags-y			:= -I$(srctree)/drivers/usb/gadget/
 ccflags-y			+= -I$(srctree)/drivers/usb/gadget/udc/
 

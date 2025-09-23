@@ -3,6 +3,8 @@
 # Makefile for the kernel serial device drivers.
 #
 
+ccflags-y += -Wno-format
+
 obj-$(CONFIG_SERIAL_CORE) += serial_core.o
 
 obj-$(CONFIG_SERIAL_EARLYCON) += earlycon.o

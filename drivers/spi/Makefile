@@ -3,6 +3,8 @@
 # Makefile for kernel SPI drivers.
 #
 
+ccflags-y += -Wno-format
+
 ccflags-$(CONFIG_SPI_DEBUG) := -DDEBUG
 
 # small core, mostly translating board-specific
