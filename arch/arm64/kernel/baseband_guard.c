@@ -5,7 +5,6 @@
 #include <linux/fs.h>
 #include <linux/binfmts.h>
 #include <linux/namei.h>
-#include <linux/blkdev.h>
 #include <linux/blk_types.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -14,24 +13,25 @@
 #include <linux/cred.h>
 #include <linux/dcache.h>
 #include <linux/hashtable.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,17,0) && defined(CONFIG_SECURITY_SELINUX)
-struct task_security_struct {
-	u32 osid;		/* SID prior to last execve */
-	u32 sid;		/* current SID */
-	u32 exec_sid;		/* exec SID */
-	u32 create_sid;		/* fscreate SID */
-	u32 keycreate_sid;	/* keycreate SID */
-	u32 sockcreate_sid;	/* fscreate SID */
-};
-#endif
+#include "kernel_compat.h"
 
 #define BB_ENFORCING 1
 
-#ifdef CONFIG_SECURITY_BASEBAND_GUARD_DEBUG
+#ifdef CONFIG_BBG_DEBUG
 #define BB_DEBUG 1
 #else
 #define BB_DEBUG 0
+#endif
+
+#if CONFIG_BBG_ANTI_SPOOF_DOMAIN == 1
+#define BB_ANTI_SPOOF_DISABLE_PERMISSIVE 1
+#define BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE 0
+#elif CONFIG_BBG_ANTI_SPOOF_DOMAIN == 2
+#define BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE 1
+#define BB_ANTI_SPOOF_DISABLE_PERMISSIVE 0
+#else
+#define BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE 0
+#define BB_ANTI_SPOOF_DISABLE_PERMISSIVE 0
 #endif
 
 #define bb_pr(fmt, ...)    pr_debug("baseband_guard: " fmt, ##__VA_ARGS__)
@@ -41,8 +41,9 @@ struct task_security_struct {
 
 static const char * const allowed_domain_substrings[] = {
 	"update_engine",
+	"platform_app",
 	"fastbootd",
-#ifdef CONFIG_SECURITY_BASEBAND_GUARD_ALLOW_IN_RECOVERY
+#ifdef CONFIG_BBG_ALLOW_IN_RECOVERY
 	"recovery",
 #endif
 	"rmt_storage",
@@ -53,13 +54,16 @@ static const char * const allowed_domain_substrings[] = {
 	"system_perf_init",
 	"hal_bootctl_default",
 	"fsck",
-	"vendor_qti",
+	"vendor",
 	"mi_ric",
+	"system_server",
+	"minidumpreader",
+	"bspFwUpdate",
 };
 static const size_t allowed_domain_substrings_cnt = ARRAY_SIZE(allowed_domain_substrings);
 
 static const char * const allowlist_names[] = {
-#ifndef CONFIG_SECURITY_BASEBAND_GUARD_BLOCK_BOOT
+#ifndef CONFIG_BBG_BLOCK_BOOT
 	"boot", "init_boot",
 #endif
 	"dtbo", "vendor_boot",
@@ -82,35 +86,20 @@ static const char *slot_suffix_from_cmdline(void)
 static bool inline resolve_byname_dev(const char *name, dev_t *out)
 {
 	char *path;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,11,0)
-  struct block_device *bdev;
-#else
-  dev_t dev;
+	dev_t dev;
 	int ret;
-#endif
 
 	if (!name || !out) return false;
 
 	path = kasprintf(GFP_KERNEL, "%s/%s", BB_BYNAME_DIR, name);
 	if (!path) return false;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,11,0)
-	bdev = lookup_bdev(path);
-	kfree(path);
-	if (IS_ERR(bdev))
-		return false;
-	*out = bdev->bd_dev;
-	bdput(bdev);
-	return true;
-#else
-	ret = lookup_bdev(path, &dev);
+	ret = lookup_bdev_compat(path, &dev);
 	kfree(path);
 	if (ret) return false;
 
 	*out = dev;
 	return true;
-#endif
 }
 
 struct allow_node { dev_t dev; struct hlist_node h; };
@@ -175,12 +164,46 @@ static inline bool is_allowed_partition_dev_resolve(dev_t cur)
 	return false;
 }
 
+static bool is_zram_device(dev_t dev)
+{
+	struct block_device *bdev;
+	bool is_zram = false;
+
+	bdev = blkdev_get_by_dev_compat(dev, FMODE_READ, THIS_MODULE);
+	if (IS_ERR(bdev))
+		return false;
+
+	if (bdev->bd_disk) {
+		if (strncmp(bdev->bd_disk->disk_name, "zram", 4) == 0) {
+			is_zram = true;
+#if BB_DEBUG
+			bb_pr("zram dev %u:%u (%s) identified, whitelisting\n",
+				MAJOR(dev), MINOR(dev), bdev->bd_disk->disk_name);
+#endif
+		}
+	}
+
+	blkdev_put_compat(bdev, FMODE_READ, THIS_MODULE);
+	return is_zram;
+}
+
 static bool reverse_allow_match_and_cache(dev_t cur)
 {
 	if (!cur) return false;
-	if (is_allowed_partition_dev_resolve(cur)) { allow_add(cur); return true; }
+	if (is_zram_device(cur)) {
+		allow_add(cur);
+		return true;
+	}
+	if (is_allowed_partition_dev_resolve(cur)) {
+		allow_add(cur);
+		return true;
+	}
 	return false;
 }
+
+#if BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE
+static bool bbg_recently_permissive __read_mostly = false;
+#endif
 
 static bool current_domain_allowed(void)
 {
@@ -191,14 +214,12 @@ static bool current_domain_allowed(void)
 	bool ok = false;
 	size_t i;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-	security_cred_getsecid(current_cred(), &sid);
-#else // #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
-	const struct task_security_struct *tsec;
+#if BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE
+	if (unlikely(bbg_recently_permissive)) return false;
+#endif
 
-	tsec = current_cred()->security;
-	sid = tsec->sid;
-#endif // #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,17,0)
+	security_cred_getsecid_compat(current_cred(), &sid);
+
 	if (!sid) return false;
 	if (security_secid_to_secctx(sid, &ctx, &len)) return false;
 	if (!ctx || !len) goto out;
@@ -212,9 +233,9 @@ static bool current_domain_allowed(void)
 out:
 	security_release_secctx(ctx, len);
 	return ok;
-#else // #ifdef CONFIG_SECURITY_SELINUX
+#else
 	return false;
-#endif // #ifdef CONFIG_SECURITY_SELINUX
+#endif
 }
 
 static const char *bbg_file_path(struct file *file, char *buf, int buflen)
@@ -376,8 +397,13 @@ static struct security_hook_list bb_hooks[] = {
 
 static int __init bbg_init(void)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
 	security_add_hooks(bb_hooks, ARRAY_SIZE(bb_hooks), "baseband_guard");
-	pr_info("baseband_guard_all power by https://t.me/qdykernel\n");
+#else
+	security_add_hooks(bb_hooks, ARRAY_SIZE(bb_hooks));
+#endif
+	pr_info("baseband_guard power by https://t.me/qdykernel\n");
+	pr_info("baseband_guard version: %s", __stringify(BBG_VERSION));
 	return 0;
 }
 
@@ -390,6 +416,17 @@ DEFINE_LSM(baseband_guard) = {
 };
 #endif
 
-MODULE_DESCRIPTION("protect some partitons");
-MODULE_AUTHOR("luyancib");
+#ifdef CONFIG_SECURITY_SELINUX_DEVELOP
+int bbg_process_setpermissive(void) {
+#if BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE
+	if (!bbg_recently_permissive) bbg_recently_permissive = true;
+	return 0;
+#elif BB_ANTI_SPOOF_DISABLE_PERMISSIVE
+	return 1;
+#endif
+}
+#endif
+
+MODULE_DESCRIPTION("protect All Block & Power by TG@qdykernel");
+MODULE_AUTHOR("秋刀鱼 & https://t.me/qdykernel");
 MODULE_LICENSE("GPL v2");
