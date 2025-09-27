@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# DMABUF HEAP drivers
+#
 menuconfig DMABUF_HEAPS_DEFERRED_FREE
 	bool "DMA-BUF heaps deferred-free library"
 	help

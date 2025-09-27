@@ -2082,7 +2082,6 @@ static const struct rproc_hexagon_res msm8996_mss = {
 			NULL
 	},
 	.proxy_pd_names = (char*[]){
-			"mx",
 			"cx",
 			NULL
 	},

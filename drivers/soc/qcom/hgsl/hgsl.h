@@ -251,7 +251,7 @@ struct qcom_hgsl {
 	struct idr isync_timeline_idr;
 	spinlock_t isync_timeline_lock;
 	atomic64_t total_mem_size;
-	bool default_iocoherency;
+	struct hgsl_cache_flags cache_flags;
 
 	/* Debug nodes */
 	struct kobject sysfs;
@@ -376,14 +376,12 @@ static inline bool hgsl_mem_rb_empty(struct hgsl_priv *priv)
 /**
  * lightweight function to increase the ref count of context
  */
-static inline int hgsl_context_get(struct hgsl_context *ctxt)
+static inline struct hgsl_context *hgsl_context_get(struct hgsl_context *ctxt)
 {
-	int ret = 0;
+	if (ctxt && kref_get_unless_zero(&ctxt->kref))
+		return ctxt;
 
-	if (ctxt)
-		ret = kref_get_unless_zero(&ctxt->kref);
-
-	return ret;
+	return NULL;
 }
 
 static inline u32 hgsl_hnd2id(u32 dev_hnd)

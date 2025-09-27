@@ -286676,6 +286676,106 @@ enumeration {
   }
 }
 enumeration {
+  id: 0xd59c9b2e
+  name: "key_need_perm"
+  definition {
+    underlying_type_id: 0x4585663f
+    enumerator {
+      name: "KEY_NEED_UNSPECIFIED"
+    }
+    enumerator {
+      name: "KEY_NEED_VIEW"
+      value: 1
+    }
+    enumerator {
+      name: "KEY_NEED_READ"
+      value: 2
+    }
+    enumerator {
+      name: "KEY_NEED_WRITE"
+      value: 3
+    }
+    enumerator {
+      name: "KEY_NEED_SEARCH"
+      value: 4
+    }
+    enumerator {
+      name: "KEY_NEED_LINK"
+      value: 5
+    }
+    enumerator {
+      name: "KEY_NEED_SETATTR"
+      value: 6
+    }
+    enumerator {
+      name: "KEY_NEED_UNLINK"
+      value: 7
+    }
+    enumerator {
+      name: "KEY_SYSADMIN_OVERRIDE"
+      value: 8
+    }
+    enumerator {
+      name: "KEY_AUTHTOKEN_OVERRIDE"
+      value: 9
+    }
+    enumerator {
+      name: "KEY_DEFER_PERM_CHECK"
+      value: 10
+    }
+  }
+}
+enumeration {
+  id: 0xd59c9b2e
+  name: "key_need_perm"
+  definition {
+    underlying_type_id: 0x4585663f
+    enumerator {
+      name: "KEY_NEED_UNSPECIFIED"
+    }
+    enumerator {
+      name: "KEY_NEED_VIEW"
+      value: 1
+    }
+    enumerator {
+      name: "KEY_NEED_READ"
+      value: 2
+    }
+    enumerator {
+      name: "KEY_NEED_WRITE"
+      value: 3
+    }
+    enumerator {
+      name: "KEY_NEED_SEARCH"
+      value: 4
+    }
+    enumerator {
+      name: "KEY_NEED_LINK"
+      value: 5
+    }
+    enumerator {
+      name: "KEY_NEED_SETATTR"
+      value: 6
+    }
+    enumerator {
+      name: "KEY_NEED_UNLINK"
+      value: 7
+    }
+    enumerator {
+      name: "KEY_SYSADMIN_OVERRIDE"
+      value: 8
+    }
+    enumerator {
+      name: "KEY_AUTHTOKEN_OVERRIDE"
+      value: 9
+    }
+    enumerator {
+      name: "KEY_DEFER_PERM_CHECK"
+      value: 10
+    }
+  }
+}
+enumeration {
   id: 0x4e0bad92
   name: "kmsg_dump_reason"
   definition {

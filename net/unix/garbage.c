@@ -267,6 +267,172 @@ void unix_update_edges(struct unix_sock *receiver)
 	}
 }
 
+static DEFINE_SPINLOCK(unix_gc_lock);
+unsigned int unix_tot_inflight;
+
+void unix_add_edges(struct scm_fp_list *fpl, struct unix_sock *receiver)
+{
+	int i = 0, j = 0;
+
+	spin_lock(&unix_gc_lock);
+
+	if (!fpl->count_unix)
+		goto out;
+
+	do {
+		struct unix_sock *inflight = unix_get_socket(fpl->fp[j++]);
+		struct unix_edge *edge;
+
+		if (!inflight)
+			continue;
+
+		edge = fpl->edges + i++;
+		edge->predecessor = inflight;
+		edge->successor = receiver;
+
+		unix_add_edge(fpl, edge);
+	} while (i < fpl->count_unix);
+
+	receiver->scm_stat.nr_unix_fds += fpl->count_unix;
+	WRITE_ONCE(unix_tot_inflight, unix_tot_inflight + fpl->count_unix);
+out:
+	WRITE_ONCE(fpl->user->unix_inflight, fpl->user->unix_inflight + fpl->count);
+
+	spin_unlock(&unix_gc_lock);
+
+	fpl->inflight = true;
+
+	unix_free_vertices(fpl);
+}
+
+void unix_del_edges(struct scm_fp_list *fpl)
+{
+	struct unix_sock *receiver;
+	int i = 0;
+
+	spin_lock(&unix_gc_lock);
+
+	if (!fpl->count_unix)
+		goto out;
+
+	do {
+		struct unix_edge *edge = fpl->edges + i++;
+
+		unix_del_edge(fpl, edge);
+	} while (i < fpl->count_unix);
+
+	if (!fpl->dead) {
+		receiver = fpl->edges[0].successor;
+		receiver->scm_stat.nr_unix_fds -= fpl->count_unix;
+	}
+	WRITE_ONCE(unix_tot_inflight, unix_tot_inflight - fpl->count_unix);
+out:
+	WRITE_ONCE(fpl->user->unix_inflight, fpl->user->unix_inflight - fpl->count);
+
+	spin_unlock(&unix_gc_lock);
+
+	fpl->inflight = false;
+}
+
+void unix_update_edges(struct unix_sock *receiver)
+{
+	/* nr_unix_fds is only updated under unix_state_lock().
+	 * If it's 0 here, the embryo socket is not part of the
+	 * inflight graph, and GC will not see it, so no lock needed.
+	 */
+	if (!receiver->scm_stat.nr_unix_fds) {
+		receiver->listener = NULL;
+	} else {
+		spin_lock(&unix_gc_lock);
+		unix_update_graph(unix_sk(receiver->listener)->vertex);
+		receiver->listener = NULL;
+		spin_unlock(&unix_gc_lock);
+	}
+}
+
+static DEFINE_SPINLOCK(unix_gc_lock);
+unsigned int unix_tot_inflight;
+
+void unix_add_edges(struct scm_fp_list *fpl, struct unix_sock *receiver)
+{
+	int i = 0, j = 0;
+
+	spin_lock(&unix_gc_lock);
+
+	if (!fpl->count_unix)
+		goto out;
+
+	do {
+		struct unix_sock *inflight = unix_get_socket(fpl->fp[j++]);
+		struct unix_edge *edge;
+
+		if (!inflight)
+			continue;
+
+		edge = fpl->edges + i++;
+		edge->predecessor = inflight;
+		edge->successor = receiver;
+
+		unix_add_edge(fpl, edge);
+	} while (i < fpl->count_unix);
+
+	receiver->scm_stat.nr_unix_fds += fpl->count_unix;
+	WRITE_ONCE(unix_tot_inflight, unix_tot_inflight + fpl->count_unix);
+out:
+	WRITE_ONCE(fpl->user->unix_inflight, fpl->user->unix_inflight + fpl->count);
+
+	spin_unlock(&unix_gc_lock);
+
+	fpl->inflight = true;
+
+	unix_free_vertices(fpl);
+}
+
+void unix_del_edges(struct scm_fp_list *fpl)
+{
+	struct unix_sock *receiver;
+	int i = 0;
+
+	spin_lock(&unix_gc_lock);
+
+	if (!fpl->count_unix)
+		goto out;
+
+	do {
+		struct unix_edge *edge = fpl->edges + i++;
+
+		unix_del_edge(fpl, edge);
+	} while (i < fpl->count_unix);
+
+	if (!fpl->dead) {
+		receiver = fpl->edges[0].successor;
+		receiver->scm_stat.nr_unix_fds -= fpl->count_unix;
+	}
+	WRITE_ONCE(unix_tot_inflight, unix_tot_inflight - fpl->count_unix);
+out:
+	WRITE_ONCE(fpl->user->unix_inflight, fpl->user->unix_inflight - fpl->count);
+
+	spin_unlock(&unix_gc_lock);
+
+	fpl->inflight = false;
+}
+
+void unix_update_edges(struct unix_sock *receiver)
+{
+	/* nr_unix_fds is only updated under unix_state_lock().
+	 * If it's 0 here, the embryo socket is not part of the
+	 * inflight graph, and GC will not see it, so no lock needed.
+	 */
+	if (!receiver->scm_stat.nr_unix_fds) {
+		receiver->listener = NULL;
+	} else {
+		spin_lock(&unix_gc_lock);
+		unix_update_graph(unix_sk(receiver->listener)->vertex);
+		receiver->listener = NULL;
+		spin_unlock(&unix_gc_lock);
+	}
+}
+
 int unix_prepare_fpl(struct scm_fp_list *fpl)
 {
 	struct unix_vertex *vertex;
@@ -544,8 +710,6 @@ static void unix_walk_scc_fast(struct sk_buff_head *hitlist)
 
 	list_replace_init(&unix_visited_vertices, &unix_unvisited_vertices);
 }
-
-static bool gc_in_progress;
 
 static void __unix_gc(struct work_struct *work)
 {
