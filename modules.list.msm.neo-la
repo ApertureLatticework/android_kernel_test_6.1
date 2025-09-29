@@ -64,6 +64,7 @@ qcom-vadc-common.ko
 qcom-spmi-adc5.ko
 qti-adc-tm.ko
 rtc-pm8xxx.ko
+pmic-pon-log.ko
 qpnp-power-on.ko
 spmi-pmic-arb.ko
 nvmem_qcom-spmi-sdam.ko
