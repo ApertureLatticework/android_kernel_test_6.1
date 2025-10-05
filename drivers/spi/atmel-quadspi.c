@@ -623,6 +623,40 @@ static int atmel_qspi_set_cs_timing(struct spi_device *spi)
 	return 0;
 }
 
+static int atmel_qspi_set_cs_timing(struct spi_device *spi)
+{
+	struct spi_controller *ctrl = spi->controller;
+	struct atmel_qspi *aq = spi_controller_get_devdata(ctrl);
+	unsigned long clk_rate;
+	u32 cs_setup;
+	int delay;
+	int ret;
+
+	delay = spi_delay_to_ns(&spi->cs_setup, NULL);
+	if (delay <= 0)
+		return delay;
+
+	clk_rate = clk_get_rate(aq->pclk);
+	if (!clk_rate)
+		return -EINVAL;
+
+	cs_setup = DIV_ROUND_UP((delay * DIV_ROUND_UP(clk_rate, 1000000)),
+				1000);
+
+	ret = pm_runtime_resume_and_get(ctrl->dev.parent);
+	if (ret < 0)
+		return ret;
+
+	aq->scr &= ~QSPI_SCR_DLYBS_MASK;
+	aq->scr |= QSPI_SCR_DLYBS(cs_setup);
+	atmel_qspi_write(aq->scr, aq, QSPI_SCR);
+
+	pm_runtime_mark_last_busy(ctrl->dev.parent);
+	pm_runtime_put_autosuspend(ctrl->dev.parent);
+
+	return 0;
+}
+
 static void atmel_qspi_init(struct atmel_qspi *aq)
 {
 	/* Reset the QSPI controller */

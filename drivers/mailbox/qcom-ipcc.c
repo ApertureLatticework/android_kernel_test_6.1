@@ -397,6 +397,13 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
+	ipcc->hibernate_notif_block.notifier_call = qcom_ipcc_hibernation_cb;
+	ret = register_pm_notifier(&ipcc->hibernate_notif_block);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register PM notifier: %d\n", ret);
+		goto err_req_irq;
+	}
+
 	platform_set_drvdata(pdev, ipcc);
 
 	return 0;

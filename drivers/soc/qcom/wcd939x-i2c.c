@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/usb/typec.h>
@@ -2372,6 +2372,7 @@ static struct i2c_driver wcd_usbss_i2c_driver = {
 	.id_table = wcd_usbss_id_i2c,
 	.probe_new = wcd_usbss_probe,
 	.remove = wcd_usbss_remove,
+	.shutdown = wcd_usbss_shutdown,
 };
 module_i2c_driver(wcd_usbss_i2c_driver);
 

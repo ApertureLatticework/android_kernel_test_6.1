@@ -286786,6 +286786,106 @@ enumeration {
   }
 }
 enumeration {
+  id: 0xd59c9b2e
+  name: "key_need_perm"
+  definition {
+    underlying_type_id: 0x4585663f
+    enumerator {
+      name: "KEY_NEED_UNSPECIFIED"
+    }
+    enumerator {
+      name: "KEY_NEED_VIEW"
+      value: 1
+    }
+    enumerator {
+      name: "KEY_NEED_READ"
+      value: 2
+    }
+    enumerator {
+      name: "KEY_NEED_WRITE"
+      value: 3
+    }
+    enumerator {
+      name: "KEY_NEED_SEARCH"
+      value: 4
+    }
+    enumerator {
+      name: "KEY_NEED_LINK"
+      value: 5
+    }
+    enumerator {
+      name: "KEY_NEED_SETATTR"
+      value: 6
+    }
+    enumerator {
+      name: "KEY_NEED_UNLINK"
+      value: 7
+    }
+    enumerator {
+      name: "KEY_SYSADMIN_OVERRIDE"
+      value: 8
+    }
+    enumerator {
+      name: "KEY_AUTHTOKEN_OVERRIDE"
+      value: 9
+    }
+    enumerator {
+      name: "KEY_DEFER_PERM_CHECK"
+      value: 10
+    }
+  }
+}
+enumeration {
+  id: 0xd59c9b2e
+  name: "key_need_perm"
+  definition {
+    underlying_type_id: 0x4585663f
+    enumerator {
+      name: "KEY_NEED_UNSPECIFIED"
+    }
+    enumerator {
+      name: "KEY_NEED_VIEW"
+      value: 1
+    }
+    enumerator {
+      name: "KEY_NEED_READ"
+      value: 2
+    }
+    enumerator {
+      name: "KEY_NEED_WRITE"
+      value: 3
+    }
+    enumerator {
+      name: "KEY_NEED_SEARCH"
+      value: 4
+    }
+    enumerator {
+      name: "KEY_NEED_LINK"
+      value: 5
+    }
+    enumerator {
+      name: "KEY_NEED_SETATTR"
+      value: 6
+    }
+    enumerator {
+      name: "KEY_NEED_UNLINK"
+      value: 7
+    }
+    enumerator {
+      name: "KEY_SYSADMIN_OVERRIDE"
+      value: 8
+    }
+    enumerator {
+      name: "KEY_AUTHTOKEN_OVERRIDE"
+      value: 9
+    }
+    enumerator {
+      name: "KEY_DEFER_PERM_CHECK"
+      value: 10
+    }
+  }
+}
+enumeration {
   id: 0x4e0bad92
   name: "kmsg_dump_reason"
   definition {
@@ -287656,6 +287756,46 @@ enumeration {
     enumerator {
       name: "__NFC_ATTR_AFTER_LAST"
       value: 32
+    }
+  }
+}
+enumeration {
+  id: 0x56760d43
+  name: "nfnl_abort_action"
+  definition {
+    underlying_type_id: 0x4585663f
+    enumerator {
+      name: "NFNL_ABORT_NONE"
+    }
+    enumerator {
+      name: "NFNL_ABORT_AUTOLOAD"
+      value: 1
+    }
+    enumerator {
+      name: "NFNL_ABORT_VALIDATE"
+      value: 2
+    }
+  }
+}
+enumeration {
+  id: 0x293705d2
+  name: "nfnl_callback_type"
+  definition {
+    underlying_type_id: 0x4585663f
+    enumerator {
+      name: "NFNL_CB_UNSPEC"
+    }
+    enumerator {
+      name: "NFNL_CB_MUTEX"
+      value: 1
+    }
+    enumerator {
+      name: "NFNL_CB_RCU"
+      value: 2
+    }
+    enumerator {
+      name: "NFNL_CB_BATCH"
+      value: 3
     }
   }
 }
