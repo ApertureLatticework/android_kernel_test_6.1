@@ -57,7 +57,7 @@ struct ctl_table lse_table[] = {
         .data         = &slim_walt_ctrl,
         .maxlen       = sizeof(int),
         .mode         = 0644,
-        .proc_handler = proc_dobool,
+        .proc_handler = proc_dointvec,
     },
     {
         .procname     = "slim_walt_policy",
