@@ -134,3 +134,4 @@ config SCHED_CORE
 	  be no measurable impact on performance.
 
 
+source "kernel/sched/sched_ext/Kconfig"
