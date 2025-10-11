@@ -1,7 +1,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/security.h>
-#include <linux/lsm_hooks.h>
 #include <linux/fs.h>
 #include <linux/binfmts.h>
 #include <linux/namei.h>
@@ -24,8 +23,8 @@
 #endif
 
 #if CONFIG_BBG_ANTI_SPOOF_DOMAIN == 1
-#define BB_ANTI_SPOOF_DISABLE_PERMISSIVE 1
 #define BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE 0
+#define BB_ANTI_SPOOF_DISABLE_PERMISSIVE 1
 #elif CONFIG_BBG_ANTI_SPOOF_DOMAIN == 2
 #define BB_ANTI_SPOOF_NO_TRUST_PERMISSIVE_ONCE 1
 #define BB_ANTI_SPOOF_DISABLE_PERMISSIVE 0
@@ -397,11 +396,7 @@ static struct security_hook_list bb_hooks[] = {
 
 static int __init bbg_init(void)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
-	security_add_hooks(bb_hooks, ARRAY_SIZE(bb_hooks), "baseband_guard");
-#else
-	security_add_hooks(bb_hooks, ARRAY_SIZE(bb_hooks));
-#endif
+	security_add_hooks_compat(bb_hooks, ARRAY_SIZE(bb_hooks));
 	pr_info("baseband_guard power by https://t.me/qdykernel\n");
 	pr_info("baseband_guard version: %s", __stringify(BBG_VERSION));
 	return 0;
@@ -423,9 +418,61 @@ int bbg_process_setpermissive(void) {
 	return 0;
 #elif BB_ANTI_SPOOF_DISABLE_PERMISSIVE
 	return 1;
+#else
+	return 0;
 #endif
 }
 #endif
+
+int bbg_test_domain_transition(u32 target_secid) {
+#ifdef CONFIG_BBG_DOMAIN_PROTECTION
+    u32 sid = 0;
+    char *ctx = NULL;
+    u32 len = 0;
+    int ok = 0;
+	size_t i;
+
+    security_cred_getsecid_compat(current_cred(), &sid); // 检查是否为su域
+    if (!sid)
+        return 0;
+    if (security_secid_to_secctx(sid, &ctx, &len))
+        return 0;
+
+    if (ctx && len) {
+        if (strnstr(ctx, ":su:", len)) {
+            ok = 1;
+        }
+    }
+
+    security_release_secctx(ctx, len);
+
+	if (!ok) return 0;
+	ok = 0;
+
+	if (security_secid_to_secctx(target_secid, &ctx, &len)) // 检查切换目标是否为允许操作磁盘的域
+        return 0;
+    if (!ctx || !len) goto out;
+
+	for (i = 0; i < allowed_domain_substrings_cnt; i++) {
+		const char *needle = allowed_domain_substrings[i];
+		if (needle && *needle) {
+			if (strnstr(ctx, needle, len)) { ok = 1; break; }
+		}
+	}
+out:
+	if (ok) { // 如果全部符合，打印日志，并且根据是否强制执行来决定是否拦截域转换
+            pr_info("baseband_guard: deny domain transition, target domain: %.*s, current PID: %d\n",
+                    len, ctx, current->pid);
+        }
+	security_release_secctx(ctx, len);
+    if (!BB_ENFORCING)
+        return 0;
+
+    return ok;
+#else
+    return 0;
+#endif
+}
 
 MODULE_DESCRIPTION("protect All Block & Power by TG@qdykernel");
 MODULE_AUTHOR("秋刀鱼 & https://t.me/qdykernel");

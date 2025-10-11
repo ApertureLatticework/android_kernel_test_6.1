@@ -1,0 +1,11 @@
+obj-y += adios/
+obj-y += baseguard/
+obj-y += rekernel/
+obj-y += sched_ext/
+obj-y += ssg/
+obj-y += symbol_check/
+obj-y += tcp/
+obj-$(CONFIG_LZ4K_COMPRESS) += lz4k/
+obj-$(CONFIG_LZ4K_DECOMPRESS) += lz4k/
+obj-$(CONFIG_LZ4KD_COMPRESS) += lz4kd/
+obj-$(CONFIG_LZ4KD_DECOMPRESS) += lz4kd/

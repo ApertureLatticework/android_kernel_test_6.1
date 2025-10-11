@@ -1618,55 +1618,6 @@ config ARM64_TAGGED_ADDR_ABI
 	  to system calls as pointer arguments. For details, see
 	  Documentation/arm64/tagged-address-abi.rst.
 
-menu "Baseband Security Guard Configuration"
-
-config SECURITY_BASEBAND_GUARD
-       bool "Enable Baseband Guard (Anti-Format)" 
-       default y
-       depends on SECURITY
-       help
-          An Android baseband anti-formatting protector 
-          module by Github@showdo, preventing malicious
-          scripts or programs writing into important
-          function partitions.
-          If unsure, leave this y.
-
-config SECURITY_BASEBAND_GUARD_ALLOW_IN_RECOVERY
-       bool "Turn off Baseband Protect in Recovery Mode"
-       depends on SECURITY_BASEBAND_GUARD
-       default y
-       help
-          Turn off protection in recovery mode, in
-          order that repairing system partitions can
-          be done in recovery mode.
-          If unsure, leave this y.
-
-config SECURITY_BASEBAND_GUARD_BLOCK_BOOT
-       bool "Enable Baseband Protect for Boot Partition"
-       depends on SECURITY_BASEBAND_GUARD
-       default n
-       help
-          Enable protection for boot partition to
-          prevent malicious scripts or programs
-          destroying, however this may cause failure
-          when flashing kernels in Android system
-          (meaning that you'll only be able to flash
-          kernels/boot partition image in recovery/
-          fastboot mode).
-          If unsure, leave this n.
-
-config SECURITY_BASEBAND_GUARD_DEBUG
-       bool "Output details to log for debugging"
-       depends on SECURITY_BASEBAND_GUARD
-       default y
-       help
-          Output details about rejected requests
-          (Rejected process name & domain) to dmesg
-          log for debugging.
-          If unsure, leave this y.
-
-endmenu
-
 menuconfig COMPAT
 	bool "Kernel support for 32-bit EL0"
 	depends on ARM64_4K_PAGES || EXPERT

@@ -1,0 +1,6 @@
+config CRYPTO_ZSTDN
+	tristate "Zstdn compression algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_ACOMP2
+	help
+	  This is the zstdn algorithm.

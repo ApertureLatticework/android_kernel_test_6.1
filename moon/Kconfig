@@ -1,0 +1,24 @@
+menu "Summer Pocket test kernel features"
+
+source "moon/adios/Kconfig"
+source "moon/baseguard/Kconfig"
+source "moon/symbol_check/Kconfig"
+source "moon/tcp/Kconfig"
+source "moon/rekernel/Kconfig"
+source "moon/sched_ext/Kconfig"
+source "moon/ssg/Kconfig"
+source "moon/zstdn/Kconfig"
+
+config LZ4K_COMPRESS
+        tristate
+
+config LZ4KD_COMPRESS
+        tristate
+
+config LZ4K_DECOMPRESS
+        tristate
+
+config LZ4KD_DECOMPRESS
+        tristate
+
+endmenu

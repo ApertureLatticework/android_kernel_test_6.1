@@ -18,10 +18,10 @@
 #include <linux/percpu.h>
 #include <linux/string.h>
 
-#include "elevator.h"
-#include "blk.h"
-#include "blk-mq.h"
-#include "blk-mq-sched.h"
+#include <../block/elevator.h>
+#include <../block/blk.h>
+#include <../block/blk-mq.h>
+#include <../block/blk-mq-sched.h>
 
 #define ADIOS_VERSION "2.5.0"
 #define BLK_MQ_INSERT_AT_HEAD 1

@@ -21,12 +21,12 @@
 
 #include <trace/events/block.h>
 
-#include "blk.h"
-#include "elevator.h"
-#include "blk-mq.h"
-#include "blk-mq-debugfs.h"
-#include "blk-mq-tag.h"
-#include "blk-mq-sched.h"
+#include <../block/blk.h>
+#include <../block/elevator.h>
+#include <../block/blk-mq.h>
+#include <../block/blk-mq-debugfs.h>
+#include <../block/blk-mq-tag.h>
+#include <../block/blk-mq-sched.h>
 #include "ssg.h"
 #include "blk-sec.h"
 

@@ -1,0 +1,9 @@
+config TCP_CONG_BRUTAL
+	tristate "Brutal TCP congestion control"
+	default n
+
+config TCP_CONG_PIXIE
+	tristate "Pixie TCP congestion control"
+	default n
+    help
+      This is the pixie tcp congestion algorithm.

@@ -85,6 +85,7 @@ obj-y			+= certs/
 obj-y			+= mm/
 obj-y			+= fs/
 obj-y			+= ipc/
+obj-y			+= moon/
 obj-y			+= security/
 obj-y			+= crypto/
 obj-$(CONFIG_BLOCK)	+= block/

@@ -9,9 +9,9 @@
 #include <linux/blk-mq.h>
 #include <linux/sbitmap.h>
 
-#include "elevator.h"
-#include "blk-mq.h"
-#include "blk-mq-tag.h"
+#include <../block/elevator.h>
+#include <../block/blk-mq.h>
+#include <../block/blk-mq-tag.h>
 #include "ssg.h"
 
 #define IO_TYPES (REQ_OP_DISCARD + 1)

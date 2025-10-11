@@ -8,9 +8,9 @@
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
 
-#include "blk-cgroup.h"
-#include "blk-mq.h"
-#include "blk-mq-tag.h"
+#include <../block/blk-cgroup.h>
+#include <../block/blk-mq.h>
+#include <../block/blk-mq-tag.h>
 #include "ssg.h"
 
 

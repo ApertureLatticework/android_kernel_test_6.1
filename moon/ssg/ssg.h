@@ -2,7 +2,7 @@
 #ifndef SSG_H
 #define SSG_H
 
-#include "blk-cgroup.h"
+#include <../block/blk-cgroup.h>
 
 struct ssg_request_info {
 	pid_t tgid;
