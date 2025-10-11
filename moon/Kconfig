@@ -1,5 +1,9 @@
 menu "Summer Pocket test kernel features"
 
+config SUMMER_POCKETS
+        tristate
+	default y
+
 source "moon/adios/Kconfig"
 source "moon/baseguard/Kconfig"
 source "moon/symbol_check/Kconfig"
