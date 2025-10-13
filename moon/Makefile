@@ -10,3 +10,5 @@ obj-$(CONFIG_LZ4K_DECOMPRESS) += lz4k/
 obj-$(CONFIG_LZ4KD_COMPRESS) += lz4kd/
 obj-$(CONFIG_LZ4KD_DECOMPRESS) += lz4kd/
 obj-$(CONFIG_SUMMER_POCKETS) += abi.o
+obj-$(CONFIG_CRYPTO_LZ4K) += lz4k.o
+obj-$(CONFIG_CRYPTO_LZ4KD) += lz4kd.o

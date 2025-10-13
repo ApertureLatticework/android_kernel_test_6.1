@@ -3,6 +3,8 @@ menu "Summer Pocket test kernel features"
 config SUMMER_POCKETS
         tristate
 	default y
+	help
+	  It's Summer Pockets!
 
 source "moon/adios/Kconfig"
 source "moon/baseguard/Kconfig"
@@ -12,6 +14,28 @@ source "moon/rekernel/Kconfig"
 source "moon/sched_ext/Kconfig"
 source "moon/ssg/Kconfig"
 source "moon/zstdn/Kconfig"
+
+config CRYPTO_LZ4K
+        tristate "LZ4K"
+        select CRYPTO_ALGAPI
+        select CRYPTO_ACOMP2
+        select LZ4K_COMPRESS
+        select LZ4K_DECOMPRESS
+        help
+          LZ4K compression algorithm
+
+          See https://github.com/lz4/lz4 for further information.
+
+config CRYPTO_LZ4KD
+        tristate "LZ4KD"
+        select CRYPTO_ALGAPI
+        select CRYPTO_ACOMP2
+        select LZ4KD_COMPRESS
+        select LZ4KD_DECOMPRESS
+        help
+          LZ4KD compression algorithm
+
+          See https://github.com/lz4/lz4 for further information.
 
 config LZ4K_COMPRESS
         tristate
@@ -26,3 +50,4 @@ config LZ4KD_DECOMPRESS
         tristate
 
 endmenu
+
