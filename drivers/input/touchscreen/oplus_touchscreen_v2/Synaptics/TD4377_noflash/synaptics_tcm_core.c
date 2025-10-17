@@ -447,7 +447,7 @@ static int syna_get_report_data(struct syna_tcm_hcd *tcm_hcd, unsigned int offse
 		byte_data >>= bit_offset;
 
 		available_bits = 8 - bit_offset;
-		data_bits = MIN(available_bits, remaining_bits);
+		data_bits = min(available_bits, remaining_bits);
 		mask = 0xff >> (8 - data_bits);
 
 		byte_data &= mask;
@@ -1246,7 +1246,7 @@ static void syna_set_trigger_reason(struct syna_tcm_hcd *tcm_hcd, irq_reason tri
 	unsigned int max_write_size;
 
 	max_write_size = le2_to_uint(tcm_hcd->id_info.max_write_size);
-	tcm_hcd->wr_chunk_size = MIN(max_write_size, WR_CHUNK_SIZE);
+	tcm_hcd->wr_chunk_size = min(max_write_size, WR_CHUNK_SIZE);
 	if (tcm_hcd->wr_chunk_size == 0) {
 		tcm_hcd->wr_chunk_size = max_write_size;
 	}
@@ -1431,7 +1431,7 @@ static void syna_tcm_dispatch_message(struct syna_tcm_hcd *tcm_hcd)
 				       sizeof(tcm_hcd->id_info),
 				       &tcm_hcd->in.buf[MESSAGE_HEADER_SIZE],
 				       tcm_hcd->in.buf_size - MESSAGE_HEADER_SIZE,
-				       MIN(sizeof(tcm_hcd->id_info), payload_length));
+				       min(sizeof(tcm_hcd->id_info), payload_length));
 		if (retval < 0) {
 			if (tcm_hcd->health_monitor_support) {
 				tp_healthinfo_report(tcm_hcd->monitor_data, HEALTH_REPORT, "dispatch_msg_err_cpidinfo");
@@ -2031,8 +2031,8 @@ check_padding:
 	UNLOCK_BUFFER(tcm_hcd->in);
 
 #ifdef PREDICTIVE_READING
-	total_length = MAX(total_length, MIN_READ_LENGTH);
-	tcm_hcd->read_length = MIN(total_length, tcm_hcd->rd_chunk_size);
+	total_length = max(total_length, MIN_READ_LENGTH);
+	tcm_hcd->read_length = min(total_length, tcm_hcd->rd_chunk_size);
 	if (tcm_hcd->rd_chunk_size == 0) {
 		tcm_hcd->read_length = total_length;
 	}
@@ -2511,7 +2511,7 @@ get_app_info:
 			       sizeof(tcm_hcd->app_info),
 			       resp_buf,
 			       resp_buf_size,
-			       MIN(sizeof(tcm_hcd->app_info), resp_length));
+			       min(sizeof(tcm_hcd->app_info), resp_length));
 	if (retval < 0) {
 		TPD_INFO("Failed to copy application info\n");
 		goto exit;
@@ -2564,7 +2564,7 @@ static int syna_tcm_get_boot_info(struct syna_tcm_hcd *tcm_hcd)
 			       sizeof(tcm_hcd->boot_info),
 			       resp_buf,
 			       resp_buf_size,
-			       MIN(sizeof(tcm_hcd->boot_info), resp_length));
+			       min(sizeof(tcm_hcd->boot_info), resp_length));
 	if (retval < 0) {
 		TPD_INFO("Failed to copy boot info\n");
 		goto exit;
@@ -2612,7 +2612,7 @@ static int syna_tcm_identify(struct syna_tcm_hcd *tcm_hcd, bool id)
 			       sizeof(tcm_hcd->id_info),
 			       resp_buf,
 			       resp_buf_size,
-			       MIN(sizeof(tcm_hcd->id_info), resp_length));
+			       min(sizeof(tcm_hcd->id_info), resp_length));
 	if (retval < 0) {
 		TPD_INFO("Failed to copy identification info\n");
 		goto exit;

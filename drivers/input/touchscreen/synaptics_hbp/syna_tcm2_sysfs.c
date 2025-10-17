@@ -2380,7 +2380,7 @@ static int syna_cdev_ioctl_get_config_params(struct syna_tcm *tcm,
 
 	param->parameters[0] |= (tcm->tcm_dev->id_info.version) << 24;
 
-	param->parameters[3] = MIN(bdata_io->rd_chunk_size, bdata_io->wr_chunk_size);
+	param->parameters[3] = min(bdata_io->rd_chunk_size, bdata_io->wr_chunk_size);
 
 	param->parameters[8] = (unsigned int)((tcm->tcm_dev->msg_data.predict_reads & 0x01) |
 						(g_sysfs_extra_bytes_read & 0xff) << 8);

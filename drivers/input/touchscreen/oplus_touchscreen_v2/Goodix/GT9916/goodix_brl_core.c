@@ -4197,25 +4197,25 @@ static void goodix_cache_deltadata(struct chip_data_brl *chip_data)
 			if (j - tx >= 0) {
 				temp = ts_test->rawdata.data[j - tx];
 				temp = ABS(temp - raw);
-				max_val = MAX(max_val, temp);
+				max_val = max(max_val, temp);
 			}
 			/* calcu delta with bellow node */
 			if (j + tx < data_size) {
 				temp = ts_test->rawdata.data[j + tx];
 				temp = ABS(temp - raw);
-				max_val = MAX(max_val, temp);
+				max_val = max(max_val, temp);
 			}
 			/* calcu delta with left node */
 			if (j % tx) {
 				temp = ts_test->rawdata.data[j - 1];
 				temp = ABS(temp - raw);
-				max_val = MAX(max_val, temp);
+				max_val = max(max_val, temp);
 			}
 			/* calcu delta with right node */
 			if ((j + 1) % tx) {
 				temp = ts_test->rawdata.data[j + 1];
 				temp = ABS(temp - raw);
-				max_val = MAX(max_val, temp);
+				max_val = max(max_val, temp);
 			}
 			ts_test->deltadata.data[j] = max_val * 1000 / raw;
 		}

@@ -84,7 +84,7 @@ static void device_capture_touch_report(unsigned int count)
 	}
 
 	if (size) {
-		size = MIN(size, remaining_size);
+		size = min(size, remaining_size);
 		retval = secure_memcpy(&g_device_hcd->report.buf[offset],
 				       g_device_hcd->report.buf_size - offset,
 				       &data[idx],

@@ -964,9 +964,9 @@ static void syna_dev_report_input_events(struct syna_tcm *tcm)
 			}
 #ifdef REPORT_TOUCH_WIDTH
 			input_report_abs(input_dev,
-					ABS_MT_TOUCH_MAJOR, MAX(wx, wy));
+					ABS_MT_TOUCH_MAJOR, max(wx, wy));
 			input_report_abs(input_dev,
-					ABS_MT_TOUCH_MINOR, MIN(wx, wy));
+					ABS_MT_TOUCH_MINOR, min(wx, wy));
 #endif
 #ifndef TYPE_B_PROTOCOL
 			input_mt_sync(input_dev);

@@ -90,7 +90,7 @@ static void device_capture_touch_report(struct device_hcd *device_hcd,
 	}
 
 	if (size) {
-		size = MIN(size, remaining_size);
+		size = min(size, remaining_size);
 		retval = tp_memcpy(&device_hcd->report.buf[offset],
 				   device_hcd->report.buf_size - offset,
 				   &data[idx],

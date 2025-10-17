@@ -398,7 +398,7 @@ static int syna_tcm_romboot_multichip_write_flash(struct tcm_dev *tcm_dev,
 
 	w_length = w_length - (w_length % romboot_data->write_block_size);
 
-	w_length = MIN(w_length, romboot_data->max_write_payload_size);
+	w_length = min(w_length, romboot_data->max_write_payload_size);
 
 	offset = 0;
 
@@ -625,7 +625,7 @@ static int syna_tcm_romboot_multichip_get_boot_info(struct tcm_dev *tcm_dev,
 	if (boot_info == NULL)
 		goto exit;
 
-	copy_size = MIN(sizeof(struct tcm_boot_info), resp_data_len);
+	copy_size = min(sizeof(struct tcm_boot_info), resp_data_len);
 
 	retval = syna_tcm_romboot_multichip_get_resp(tcm_dev,
 		copy_size, (unsigned char *)boot_info,
@@ -1616,7 +1616,7 @@ int syna_tcm_get_romboot_info(struct tcm_dev *tcm_dev,
 	if (rom_boot_info == NULL)
 		goto exit;
 
-	copy_size = MIN(sizeof(struct tcm_romboot_info),
+	copy_size = min(sizeof(struct tcm_romboot_info),
 			tcm_dev->resp_buf.data_length);
 
 	/* copy romboot_info to caller */

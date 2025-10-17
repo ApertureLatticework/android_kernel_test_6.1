@@ -1421,7 +1421,7 @@ static int syna_tcm_write_flash(struct tcm_dev *tcm_dev,
 
 	w_length = w_length - (w_length % reflash_data->write_block_size);
 
-	w_length = MIN(w_length, reflash_data->max_write_payload_size);
+	w_length = min(w_length, reflash_data->max_write_payload_size);
 
 	offset = 0;
 
