@@ -15,6 +15,6 @@
 
 config LUNAR_SCHED_EXT
 	tristate "LunarKernel Scheduling Extention"
-	default y
+	default m
 	help
 	  Enable LunarKernel Scheduling Extention to enhance device performance.

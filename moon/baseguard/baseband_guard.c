@@ -474,6 +474,6 @@ out:
 #endif
 }
 
-MODULE_DESCRIPTION("protect All Block & Power by TG@qdykernel");
-MODULE_AUTHOR("秋刀鱼 & https://t.me/qdykernel");
+MODULE_DESCRIPTION("protect All Block");
+MODULE_AUTHOR("N/A");
 MODULE_LICENSE("GPL v2");

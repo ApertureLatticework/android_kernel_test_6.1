@@ -15,7 +15,7 @@
 
 #include "include/lse_main.h"
 
-void lse_scheduler_tick(void *unused)
+void lse_scheduler_tick(void)
 {
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
@@ -33,22 +33,29 @@ void lse_scheduler_tick(void *unused)
 		 */
 		if (cmpxchg64(&tick_sched_clock, 0, rq->clock - 20000))
 			return;
+
 		for_each_possible_cpu(cpu) {
 		    struct lse_sched_rq_stats *srq = &per_cpu(lse_sched_rq_stats, cpu);
 
 			srq->window_start = tick_sched_clock;
 		}
+
 		atomic64_set(&lse_run_rollover_lastq_ws, tick_sched_clock);
 	}
 }
 
 static void lse_scheduler_tick_cb(void *unused, struct rq *rq)
 {
-	lse_scheduler_tick(NULL);
+	lse_scheduler_tick();
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
 static void lse_schedule(void *unused, unsigned int sched_mode, struct task_struct *prev,
 	            struct task_struct *next, struct rq *rq)
+#else
+static void lse_schedule(void *unused, struct task_struct *prev, struct task_struct *next,
+	            struct rq *rq)
+#endif
 {
 	struct lse_entity *prev_lse, *next_lse;
 

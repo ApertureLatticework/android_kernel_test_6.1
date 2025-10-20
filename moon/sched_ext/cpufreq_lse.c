@@ -42,7 +42,6 @@ do {										\
 #define DEFAULT_TARGET_LOAD 90
 
 static int gov_flag[MAX_LSE_CLUSTERS] = {0};
-struct proc_dir_entry *lse_dir;
 #define MAX_CLS_NUM 5
 
 static struct irq_work lse_cpufreq_irq_work;
@@ -438,9 +437,17 @@ static void lse_irq_work(struct irq_work *irq_work)
 
 	for_each_cpu(cpu, &lock_cpus) {
 		if (level == 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 			raw_spin_lock(&cpu_rq(cpu)->__lock);
+#else
+            raw_spin_lock(&cpu_rq(cpu)->lock);
+#endif
 		else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 			raw_spin_lock_nested(&cpu_rq(cpu)->__lock, level);
+#else
+			raw_spin_lock_nested(&cpu_rq(cpu)->lock, level);
+#endif
 		level++;
 	}
 
@@ -481,7 +488,11 @@ static void lse_irq_work(struct irq_work *irq_work)
 	spin_unlock_irqrestore(&new_sched_ravg_window_lock, flags);
 
 	for_each_cpu(cpu, &lock_cpus) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 		raw_spin_unlock(&cpu_rq(cpu)->__lock);
+#else
+		raw_spin_unlock(&cpu_rq(cpu)->lock);
+#endif
 	}
 }
 
@@ -772,7 +783,11 @@ static void lse_gov_limits(struct cpufreq_policy *policy)
 struct cpufreq_governor cpufreq_lse_gov = {
 	.name			= "lse",
 	.owner			= THIS_MODULE,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 	.flags			= CPUFREQ_GOV_DYNAMIC_SWITCHING,
+#else
+    .dynamic_switching	= true,
+#endif
 	.init			= lse_gov_init,
 	.exit			= lse_gov_exit,
 	.start			= lse_gov_start,

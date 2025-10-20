@@ -3,6 +3,13 @@ ccflags-y += -Wno-unused-variable
 ccflags-y += -Wno-int-conversion
 ccflags-y += -Wno-unused-result
 ccflags-y += -Wno-unused-function
+ccflags-y += -Wno-builtin-macro-redefined -U__FILE__ -D__FILE__='""'
+
+KDIR := $(KDIR)
+MDIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
+$(info -- KDIR: $(KDIR))
+$(info -- MDIR: $(MDIR))
 
 obj-y += adios/
 obj-y += baseguard/
@@ -22,4 +29,9 @@ obj-$(CONFIG_CRYPTO_LZ4KD) += lz4kd.o
 summerpockets-objs := abi.o
 obj-$(CONFIG_SUMMER_POCKETS) += SummerPockets.o
 
-#tmp
+all:
+	make -C $(KDIR) M=$(MDIR) modules
+compdb:
+	python3 $(MDIR)/generate_compdb.py -O $(KDIR) $(MDIR)
+clean:
+	make -C $(KDIR) M=$(MDIR) clean
