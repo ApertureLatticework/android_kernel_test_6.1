@@ -19,7 +19,6 @@ obj-$(CONFIG_LZ4KD_DECOMPRESS) += lz4kd/
 obj-$(CONFIG_CRYPTO_LZ4K) += lz4k.o
 obj-$(CONFIG_CRYPTO_LZ4KD) += lz4kd.o
 
-summerpockets-objs := abi.o
-obj-$(CONFIG_SUMMER_POCKETS) += SummerPockets.o
+obj-$(CONFIG_SUMMER_POCKETS) += abi.o
 
 #tmp
