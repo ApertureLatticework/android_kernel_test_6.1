@@ -1,0 +1,3 @@
+config CPQ
+        tristate
+	default y

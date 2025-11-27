@@ -14,6 +14,7 @@ source "moon/rekernel/Kconfig"
 source "moon/sched_ext/Kconfig"
 source "moon/ssg/Kconfig"
 source "moon/zstdn/Kconfig"
+source "moon/cpq/Kconfig"
 
 config CRYPTO_LZ4K
         tristate "LZ4K"
