@@ -38,6 +38,7 @@
  *
  * Author: dabao1955 <dabao1955@163.com>
  * Copyright (C) 2025 dabao1955
+ */
 
 #include <linux/module.h>        /* Core module infrastructure: module_init/exit, THIS_MODULE */
 #include <linux/kernel.h>        /* printk(), pr_*() macros */
