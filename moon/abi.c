@@ -36,9 +36,8 @@
  * - Error handling follows kernel conventions: log errors via pr_err(), clean up
  *   partially allocated resources, and return negative errno values.
  *
- * Author: Your Name <your.email@example.com>
- * Copyright (C) 2025 Your Organization
- */
+ * Author: dabao1955 <dabao1955@163.com>
+ * Copyright (C) 2025 dabao1955
 
 #include <linux/module.h>        /* Core module infrastructure: module_init/exit, THIS_MODULE */
 #include <linux/kernel.h>        /* printk(), pr_*() macros */
@@ -52,7 +51,7 @@
  * Must remain stable across patch releases unless the ABI itself changes.
  * Format: "<major>.<minor><tag>", where <tag> may indicate development status.
  */
-#define SUMMER_POCKETS_ABI_VERSION "1.0test"
+#define SUMMER_POCKETS_ABI_VERSION "1.1test"
 
 /*
  * summer_pockets_kobj - Global kobject representing the /sys/module/summer_pockets directory.
