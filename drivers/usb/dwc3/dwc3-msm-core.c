@@ -4834,6 +4834,9 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc)
 	if (!mdwc->dwc3 || !mdwc->use_pwr_event_for_wakeup)
 		return;
 
+	if (!mdwc->ip)
+		mdwc->ip = DWC3_GSNPS_ID(dwc3_msm_read_reg(mdwc->base, DWC3_GSNPSID));
+
 	irq_stat = dwc3_msm_read_reg(mdwc->base, PWR_EVNT_IRQ_STAT_REG);
 	dev_dbg(mdwc->dev, "%s irq_stat=%X\n", __func__, irq_stat);
 
