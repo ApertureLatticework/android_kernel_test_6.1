@@ -541,6 +541,7 @@ static int ufs_qcom_phy_enable_ref_clk(struct ufs_qcom_phy *phy)
 		}
 	}
 
+
 	/*
 	 * "ref_clk" is optional clock hence make sure that clk reference
 	 * is available before trying to enable the clock.

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- * Copyright (c) 2024-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #define pr_fmt(fmt)	"eusb2_phy: %s: " fmt, __func__
@@ -156,6 +154,8 @@
 /* Maximum power domains */
 #define MIN_PD				2
 
+#define PORT_MAX			5
+
 struct msm_eusb2_phy {
 	struct usb_phy		phy;
 	void __iomem		*base;
@@ -201,6 +201,8 @@ struct msm_eusb2_phy {
 	bool			fw_managed_pwr;
 	int			pd_count;
 	struct device		**pd_devs;
+
+	u8			port_num;
 };
 
 static void msm_eusb2_phy_modeled_domain_detach(struct msm_eusb2_phy *phy)
@@ -985,10 +987,16 @@ static void msm_eusb2_phy_vbus_draw_work(struct work_struct *w)
 	struct msm_eusb2_phy *phy = container_of(w, struct msm_eusb2_phy,
 							vbus_draw_work);
 	union power_supply_propval val = {0};
+	char psy_name[6];
 	int ret;
 
+	if ((phy->port_num < PORT_MAX) && (phy->port_num > 1))
+		snprintf(psy_name, sizeof(psy_name), "usb-%u", phy->port_num);
+	else
+		snprintf(psy_name, sizeof(psy_name), "usb");
+
 	if (!phy->usb_psy) {
-		phy->usb_psy = power_supply_get_by_name("usb");
+		phy->usb_psy = power_supply_get_by_name(psy_name);
 		if (!phy->usb_psy) {
 			dev_err(phy->phy.dev, "Could not get usb psy\n");
 			return;
@@ -1051,12 +1059,10 @@ static int msm_eusb2_phy_probe(struct platform_device *pdev)
 
 	phy->phy.dev = dev;
 
-	if (!(of_device_is_compatible(dev->of_node, "qcom,usb-snps-eusb2-fw-managed"))) {
-		ur = devm_usb_get_repeater_by_phandle(dev, "usb-repeater", 0);
-		if (IS_ERR(ur)) {
-			ret = PTR_ERR(ur);
-			goto err_ret;
-		}
+	ur = devm_usb_get_optional_repeater_by_phandle(dev, "usb-repeater", 0);
+	if (IS_ERR(ur)) {
+		ret = PTR_ERR(ur);
+		goto err_ret;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -1096,6 +1102,12 @@ static int msm_eusb2_phy_probe(struct platform_device *pdev)
 
 		phy->eud_det_val = EUD_DETECT;
 		device_property_read_u8(dev, "qcom,eud-det-val", &phy->eud_det_val);
+	}
+
+	if (of_property_present(dev->of_node, "qcom,port-num")) {
+		device_property_read_u8(dev, "qcom,port-num", &phy->port_num);
+		if (phy->port_num >= PORT_MAX)
+			phy->port_num = PORT_MAX;
 	}
 
 	if (of_device_is_compatible(dev->of_node, "qcom,usb-snps-eusb2-fw-managed")) {

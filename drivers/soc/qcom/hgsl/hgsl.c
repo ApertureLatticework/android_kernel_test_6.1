@@ -162,11 +162,6 @@ struct ctx_queue_header {
 	uint32_t unused1;
 };
 
-static inline bool _timestamp_retired(struct hgsl_context *ctxt,
-				unsigned int timestamp);
-
-static inline void set_context_retired_ts(struct hgsl_context *ctxt,
-				unsigned int ts);
 static void _signal_contexts(struct qcom_hgsl *hgsl, u32 dev_hnd);
 
 static int db_get_busy_state(void *dbq_base);
@@ -175,10 +170,6 @@ static void db_set_busy_state(void *dbq_base, int in_busy);
 static int dbcq_get_free_indirect_ib_buffer(struct hgsl_priv  *priv,
 				struct hgsl_context *ctxt,
 				uint32_t ts, uint32_t timeout_in_ms);
-
-static struct hgsl_context *hgsl_get_context(struct qcom_hgsl *hgsl,
-				uint32_t dev_hnd, uint32_t context_id);
-static void hgsl_put_context(struct hgsl_context *ctxt);
 
 static bool dbq_check_ibdesc_state(struct qcom_hgsl *hgsl, struct hgsl_context *ctxt,
 		uint32_t request_type);
@@ -373,13 +364,6 @@ struct db_ignore_retpacket {
 	int in_use;
 	struct db_msg_id db_msg_id;
 } __packed;
-
-
-struct hgsl_active_wait {
-	struct list_head head;
-	struct hgsl_context *ctxt;
-	unsigned int timestamp;
-};
 
 #ifdef CONFIG_TRACE_GPU_MEM
 static inline void hgsl_trace_gpu_mem_total(struct hgsl_priv *priv, int64_t delta)
@@ -1124,12 +1108,12 @@ static int hgsl_dbcq_issue_cmd(struct hgsl_priv  *priv,
 	msg_dwords_aligned = ALIGN(msg_dwords, 4);
 
 	// check if we need to do batch submission
-	if ((msg_dwords_aligned >= dbcq->queue_size) ||
+	if ((msg_dwords_aligned >= (dbcq->queue_size >> 1)) ||
 		(msg_dwords_aligned > (MSG_SZ_MASK >> MSG_SZ_SHIFT))) {
 		msg_dwords = MSG_ISSUE_INF_SZ();
 		msg_dwords_aligned = ALIGN(msg_dwords, 4);
 		is_batch_ibdesc = true;
-		LOGI("Number of IBs exceeded. Proceeding with CMDBATCH_IBDESC");
+		LOGI("Number of IBs exceeded %#x. Proceeding with CMDBATCH_IBDESC", num_ibs);
 	}
 
 	msg_buf_sz = msg_dwords_aligned << 2;
@@ -1359,30 +1343,6 @@ static void hgsl_reset_dbq(struct doorbell_queue *dbq)
 	dbq->state = DB_STATE_Q_UNINIT;
 }
 
-static inline uint32_t get_context_retired_ts(struct hgsl_context *ctxt)
-{
-	unsigned int ts = ctxt->shadow_ts->eop;
-
-	/* ensure read is done before comparison */
-	dma_rmb();
-	return ts;
-}
-
-static inline void set_context_retired_ts(struct hgsl_context *ctxt,
-				unsigned int ts)
-{
-	ctxt->shadow_ts->eop = ts;
-
-	/* ensure update is done before return */
-	dma_wmb();
-}
-
-static inline bool _timestamp_retired(struct hgsl_context *ctxt,
-				unsigned int timestamp)
-{
-	return hgsl_ts32_ge(get_context_retired_ts(ctxt), timestamp);
-}
-
 static inline void _destroy_context(struct kref *kref);
 static void _signal_contexts(struct qcom_hgsl *hgsl,
 	u32 dev_hnd)
@@ -1579,7 +1539,7 @@ static inline void _destroy_context(struct kref *kref)
 	ctxt->destroyed = true;
 }
 
-static struct hgsl_context *hgsl_get_context(struct qcom_hgsl *hgsl,
+struct hgsl_context *hgsl_get_context(struct qcom_hgsl *hgsl,
 	uint32_t dev_hnd, uint32_t context_id)
 {
 	struct hgsl_context *ctxt = NULL;
@@ -1642,7 +1602,7 @@ static struct hgsl_context *hgsl_remove_context(struct hgsl_priv *priv,
 	return ctxt;
 }
 
-static void hgsl_put_context(struct hgsl_context *ctxt)
+void hgsl_put_context(struct hgsl_context *ctxt)
 {
 	if (ctxt)
 		kref_put(&ctxt->kref, _destroy_context);
@@ -1924,6 +1884,7 @@ static int hgsl_ctxt_create_dbq(struct hgsl_priv *priv,
 	ctxt->dbq = &hgsl->dbq[dbq_idx];
 	ctxt->tcsr_idx = ctxt->dbq->tcsr_idx;
 	ctxt->db_signal = db_signal;
+	ctxt->dbq_info = dbq_info;
 	hgsl_dbq_set_state_info(ctxt->dbq->vbase,
 				HGSL_DBQ_METADATA_CONTEXT_INFO,
 				ctxt->context_id,
@@ -3745,6 +3706,328 @@ static int hgsl_ioctl_timeline_wait(
 	return hgsl_isync_wait_multiple(priv, param);
 }
 
+static int hgsl_ioctl_gslprofiler_per_proc_gpu_busy(struct file *filep, void *data)
+{
+	struct hgsl_priv *priv = filep->private_data;
+	struct hgsl_ioctl_gslprofiler_per_proc_gpu_busy_params *param = data;
+	struct gsl_profiler_get_per_proc_gpu_busy_percentage_t *busy = NULL;
+	int ret = 0;
+
+	busy = hgsl_malloc(sizeof(struct gsl_profiler_get_per_proc_gpu_busy_percentage_t));
+	if (busy == NULL) {
+		LOGE("failed to allocate memory");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = hgsl_hyp_gslprofiler_per_proc_gpu_busy(&priv->hyp_priv, param, busy);
+	if (ret == 0) {
+		if (copy_to_user(USRPTR(param->busy), busy,
+				sizeof(struct gsl_profiler_get_per_proc_gpu_busy_percentage_t))) {
+			LOGE("failed to copy busy to user");
+			ret = -EFAULT;
+			goto out;
+		}
+	}
+
+out:
+	hgsl_free(busy);
+	return ret;
+}
+
+static int hgsl_ioctl_gslprofiler_per_proc_gpu_pmem(struct file *filep, void *data)
+{
+	struct hgsl_priv *priv = filep->private_data;
+	struct hgsl_ioctl_gslprofiler_per_proc_gpu_pmem_params *param = data;
+	struct gsl_profiler_get_per_proc_gpu_pmem_usage_t *pmem = NULL;
+	int ret = 0;
+
+	pmem = hgsl_malloc(sizeof(struct gsl_profiler_get_per_proc_gpu_pmem_usage_t));
+	if (pmem == NULL) {
+		LOGE("failed to allocate memory");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = hgsl_hyp_gslprofiler_per_proc_gpu_pmem(&priv->hyp_priv, param, pmem);
+	if (ret == 0) {
+		if (copy_to_user(USRPTR(param->pmem), pmem,
+				sizeof(struct gsl_profiler_get_per_proc_gpu_pmem_usage_t))) {
+			LOGE("failed to copy pmem to user");
+			ret = -EFAULT;
+			goto out;
+		}
+	}
+
+out:
+	hgsl_free(pmem);
+	return ret;
+}
+
+/* Returns 0 on failure.  Returns command type(s) on success */
+static u32 _get_command_type(
+	u64 flags, u32 numcmds,
+	u32 numobjs, u32 numsyncs)
+{
+	if (numcmds > ECP_MAX_NUM_IB1 ||
+			numobjs > ECP_MAX_NUM_IB1 ||
+			numsyncs > HGSL_MAX_SYNCPOINTS)
+		return 0;
+
+	/* If they specify the flag, go with what they say */
+	if (flags & HGSL_DRAWOBJ_MARKER)
+		return MARKEROBJ_TYPE;
+	else if (flags & HGSL_DRAWOBJ_SYNC)
+		return SYNCOBJ_TYPE;
+
+	if (numsyncs && numcmds)
+		return SYNCOBJ_TYPE | CMDOBJ_TYPE;
+	else if (numsyncs)
+		return SYNCOBJ_TYPE;
+	else if (numcmds)
+		return CMDOBJ_TYPE;
+	else if (numcmds == 0)
+		return MARKEROBJ_TYPE;
+
+	return 0;
+}
+
+static int hgsl_ioctl_gpu_command(
+	struct file *filep,
+	void *data)
+{
+	struct hgsl_priv *priv = filep->private_data;
+	struct qcom_hgsl *hgsl = priv->dev;
+	struct hgsl_gpu_command *param = data;
+	struct hgsl_context *ctxt;
+	struct hgsl_drawobj *drawobj[2];
+	u32 type;
+	int ret;
+	u32 i = 0;
+
+	type = _get_command_type(param->flags, param->numcmds,
+			param->numobjs, param->numsyncs);
+	if (!type)
+		return -EINVAL;
+
+	ctxt = hgsl_get_context_owner(priv, param->devhandle,
+			param->context_id);
+	if (!ctxt)
+		return -EINVAL;
+
+	/* fallback to legacy way if only support remote issueib */
+	if (!hgsl_ctxt_use_dbq(ctxt)) {
+		hgsl_put_context(ctxt);
+		return -EPERM;
+	}
+
+	if (!ctxt->dispatch) {
+		ret = hgsl_dispatch_ctxt_init(hgsl, ctxt);
+		if (ret) {
+			hgsl_put_context(ctxt);
+			return ret;
+		}
+	}
+
+	if (type & SYNCOBJ_TYPE) {
+		struct hgsl_drawobj_sync *syncobj =
+				hgsl_drawobj_sync_create(priv, ctxt);
+
+		if (IS_ERR(syncobj)) {
+			ret = PTR_ERR(syncobj);
+			goto done;
+		}
+
+		drawobj[i++] = DRAWOBJ(syncobj);
+
+		ret = hgsl_drawobj_sync_add_synclist(priv, syncobj,
+				USRPTR(param->synclist),
+				param->syncsize, param->numsyncs);
+		if (ret)
+			goto done;
+	}
+
+	if (type & (CMDOBJ_TYPE | MARKEROBJ_TYPE)) {
+		struct hgsl_drawobj_cmd *cmdobj =
+				hgsl_drawobj_cmd_create(priv,
+					ctxt, param->flags, type);
+
+		if (IS_ERR(cmdobj)) {
+			ret = PTR_ERR(cmdobj);
+			goto done;
+		}
+
+		drawobj[i++] = DRAWOBJ(cmdobj);
+
+		ret = hgsl_drawobj_cmd_add_cmdlist(priv, cmdobj,
+			USRPTR(param->cmdlist),
+			param->cmdsize, param->numcmds);
+		if (ret)
+			goto done;
+
+		ret = hgsl_drawobj_cmd_add_memlist(priv, cmdobj,
+			USRPTR(param->objlist),
+			param->objsize, param->numobjs);
+		if (ret)
+			goto done;
+
+		/* If no profiling buffer was specified, clear the flag */
+		if (!cmdobj->profiling_mem_node)
+			DRAWOBJ(cmdobj)->flags &=
+				~(unsigned long)HGSL_DRAWOBJ_PROFILING;
+	}
+
+	ret = hgsl_dispatch_queue_cmds(priv, ctxt, drawobj,
+				i, &param->timestamp);
+
+done:
+	while (ret && i--)
+		hgsl_drawobj_destroy(drawobj[i]);
+
+	hgsl_put_context(ctxt);
+	return ret;
+}
+
+static int hgsl_ioctl_gpu_aux_command(
+	struct file *filep,
+	void *data)
+{
+	struct hgsl_priv *priv = filep->private_data;
+	struct qcom_hgsl *hgsl = priv->dev;
+	struct hgsl_gpu_aux_command *param = data;
+	struct hgsl_context *ctxt;
+	struct hgsl_drawobj **drawobjs;
+	void __user *cmdlist;
+	u32 count;
+	int i, index = 0;
+	int ret;
+	struct hgsl_gpu_aux_command_generic generic;
+
+	/* We support only one aux command */
+	if (param->numcmds != 1)
+		return -EINVAL;
+
+	if (!(param->flags & HGSL_GPU_AUX_COMMAND_TIMELINE))
+		return -EINVAL;
+
+	if ((param->flags & HGSL_GPU_AUX_COMMAND_SYNC) &&
+		(param->numsyncs > HGSL_MAX_SYNCPOINTS))
+		return -EINVAL;
+
+	ctxt = hgsl_get_context_owner(priv, param->devhandle,
+			param->context_id);
+	if (!ctxt)
+		return -EINVAL;
+
+	/* fallback to legacy way if only support remote issueib */
+	if (!hgsl_ctxt_use_dbq(ctxt)) {
+		hgsl_put_context(ctxt);
+		return -EPERM;
+	}
+
+	if (!ctxt->dispatch) {
+		ret = hgsl_dispatch_ctxt_init(hgsl, ctxt);
+		if (ret) {
+			hgsl_put_context(ctxt);
+			return ret;
+		}
+	}
+	/*
+	 * param->numcmds is always one and we have one additional drawobj
+	 * for the timestamp sync if HGSL_GPU_AUX_COMMAND_SYNC flag is passed.
+	 * On top of that we make an implicit sync object for the last queued
+	 * timestamp on this ctxt.
+	 */
+	count = (param->flags & HGSL_GPU_AUX_COMMAND_SYNC) ? 3 : 2;
+
+	drawobjs = kvcalloc(count, sizeof(*drawobjs),
+		GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
+	if (!drawobjs) {
+		hgsl_put_context(ctxt);
+		return -ENOMEM;
+	}
+
+	trace_hgsl_aux_command(param->devhandle, param->context_id,
+		param->numcmds, param->flags, param->timestamp);
+
+	if (param->flags & HGSL_GPU_AUX_COMMAND_SYNC) {
+		struct hgsl_drawobj_sync *syncobj =
+			hgsl_drawobj_sync_create(priv, ctxt);
+
+		if (IS_ERR(syncobj)) {
+			ret = PTR_ERR(syncobj);
+			goto err;
+		}
+
+		drawobjs[index++] = DRAWOBJ(syncobj);
+
+		ret = hgsl_drawobj_sync_add_synclist(priv, syncobj,
+				USRPTR(param->synclist),
+				param->syncsize, param->numsyncs);
+		if (ret)
+			goto err;
+	}
+
+	cmdlist = USRPTR(param->cmdlist);
+	/*
+	 * Create a draw object for HGSL_GPU_AUX_COMMAND_TIMELINE.
+	 */
+	if (copy_struct_from_user(&generic, sizeof(generic),
+		cmdlist, param->cmdsize)) {
+		ret = -EFAULT;
+		goto err;
+	}
+
+	if (generic.type == HGSL_GPU_AUX_COMMAND_TIMELINE) {
+		struct hgsl_drawobj_timeline *timelineobj;
+		struct hgsl_drawobj_cmd *markerobj;
+
+		timelineobj = hgsl_drawobj_timeline_create(priv, ctxt);
+		if (IS_ERR(timelineobj)) {
+			ret = PTR_ERR(timelineobj);
+			goto err;
+		}
+
+		drawobjs[index++] = DRAWOBJ(timelineobj);
+
+		ret = hgsl_drawobj_add_timeline(priv, timelineobj,
+			cmdlist, param->cmdsize);
+		if (ret)
+			goto err;
+
+		/*
+		 * Userspace needs a timestamp to associate with this
+		 * submisssion. Use a marker to keep the timestamp
+		 * bookkeeping correct.
+		 */
+		markerobj = hgsl_drawobj_cmd_create(priv, ctxt,
+			HGSL_DRAWOBJ_MARKER, MARKEROBJ_TYPE);
+
+		if (IS_ERR(markerobj)) {
+			ret = PTR_ERR(markerobj);
+			goto err;
+		}
+
+		drawobjs[index++] = DRAWOBJ(markerobj);
+	} else {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = hgsl_dispatch_queue_cmds(priv, ctxt, drawobjs,
+				index, &param->timestamp);
+
+err:
+	hgsl_put_context(ctxt);
+	if (ret && ret != -EPROTO) {
+		for (i = 0; i < count; i++)
+			hgsl_drawobj_destroy(drawobjs[i]);
+	}
+
+	kvfree(drawobjs);
+	return ret;
+}
+
 static const struct hgsl_ioctl hgsl_ioctl_func_table[] = {
 	HGSL_IOCTL_FUNC(HGSL_IOCTL_ISSUE_IB,
 			hgsl_ioctl_issueib),
@@ -3812,6 +4095,14 @@ static const struct hgsl_ioctl hgsl_ioctl_func_table[] = {
 			hgsl_ioctl_timeline_query),
 	HGSL_IOCTL_FUNC(HGSL_IOCTL_TIMELINE_WAIT,
 			hgsl_ioctl_timeline_wait),
+	HGSL_IOCTL_FUNC(HGSL_IOCTL_GSLPROFILER_PER_PROC_GPU_BUSY,
+			hgsl_ioctl_gslprofiler_per_proc_gpu_busy),
+	HGSL_IOCTL_FUNC(HGSL_IOCTL_GSLPROFILER_PER_PROC_GPU_PMEM,
+			hgsl_ioctl_gslprofiler_per_proc_gpu_pmem),
+	HGSL_IOCTL_FUNC(HGSL_IOCTL_GPU_COMMAND,
+			hgsl_ioctl_gpu_command),
+	HGSL_IOCTL_FUNC(HGSL_IOCTL_GPU_AUX_COMMAND,
+			hgsl_ioctl_gpu_aux_command),
 };
 
 static long hgsl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)

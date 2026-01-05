@@ -2609,7 +2609,7 @@ ufshcd_is_valid_pm_lvl(enum ufs_pm_level lvl)
 	return lvl >= 0 && lvl < UFS_PM_LVL_MAX;
 }
 
-static void ufshcd_parse_pm_levels(struct ufs_hba *hba)
+static void ufs_qcom_parse_pm_levels(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;
 	struct device_node *np = dev->of_node;
@@ -2619,16 +2619,15 @@ static void ufshcd_parse_pm_levels(struct ufs_hba *hba)
 	if (!np)
 		return;
 
-	if (host->is_dt_pm_level_read)
-		return;
-
 	if (!of_property_read_u32(np, "rpm-level", &rpm_lvl) &&
 		ufshcd_is_valid_pm_lvl(rpm_lvl))
 		hba->rpm_lvl = rpm_lvl;
 	if (!of_property_read_u32(np, "spm-level", &spm_lvl) &&
 		ufshcd_is_valid_pm_lvl(spm_lvl))
 		hba->spm_lvl = spm_lvl;
-	host->is_dt_pm_level_read = true;
+	if (of_property_read_bool(np, "set-ds-spm-level"))
+		host->set_ds_spm_level = true;
+
 }
 
 static void ufs_qcom_override_pa_tx_hsg1_sync_len(struct ufs_hba *hba)
@@ -2749,14 +2748,15 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
 			UFSHCD_CAP_AUTO_BKOPS_SUSPEND |
 			UFSHCD_CAP_AGGR_POWER_COLLAPSE |
 			UFSHCD_CAP_WB_WITH_CLK_SCALING;
-		if (!host->disable_wb_support)
-			hba->caps |= UFSHCD_CAP_WB_EN;
 	}
 
 	if (!(hba->caps & UFSHCD_CAP_CLK_SCALING) && of_property_read_bool(np, "irq_toggle_affinity_by_ioloading")) {
 		host->irq_toggle_affinity_by_ioloading = true;
 	} else
 		host->irq_toggle_affinity_by_ioloading = false;
+
+	if (!host->disable_wb_support)
+		hba->caps |= UFSHCD_CAP_WB_EN;
 
 	hba->caps |= UFSHCD_CAP_CRYPTO;
 
@@ -3734,25 +3734,6 @@ static void ufs_qcom_parse_irq_affinity(struct ufs_hba *hba)
 	/* If device includes perf mask, enable dynamic irq affinity feature */
 	if (host->perf_mask.bits[0])
 		host->irq_affinity_support = true;
-}
-
-static void ufs_qcom_parse_pm_level(struct ufs_hba *hba)
-{
-	struct device *dev = hba->dev;
-	struct device_node *np = dev->of_node;
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-
-	if (np) {
-		if (of_property_read_u32(np, "rpm-level",
-					 &hba->rpm_lvl))
-			hba->rpm_lvl = -1;
-		if (of_property_read_u32(np, "spm-level",
-					 &hba->spm_lvl))
-			hba->spm_lvl = -1;
-
-		if (of_property_read_bool(np, "set-ds-spm-level"))
-			host->set_ds_spm_level = true;
-	}
 }
 
 /* Returns the max mitigation level supported */
@@ -4933,7 +4914,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	if (err)
 		goto out_disable_parent_vreg;
 
-	ufs_qcom_parse_pm_level(hba);
+	ufs_qcom_parse_pm_levels(hba);
 	ufs_qcom_parse_g4_workaround_flag(host);
 	ufs_qcom_parse_lpm(host);
 	if (host->disable_lpm)

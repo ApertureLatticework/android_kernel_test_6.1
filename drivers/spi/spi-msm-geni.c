@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/clk.h>
@@ -542,6 +542,17 @@ static int get_spi_clk_cfg(u32 speed_hz, struct spi_geni_master *mas,
 	dev_dbg(mas->dev, "%s: req %u resultant %lu sclk %lu, idx %d, div %d\n",
 		__func__, speed_hz, res_freq, sclk_freq, *clk_idx, *clk_div);
 
+	if (mas->cur_xfer_mode != GENI_GPI_DMA) {
+		geni_write_reg((*clk_idx & CLK_SEL_MSK), mas->base, SE_GENI_CLK_SEL);
+		geni_write_reg(((*clk_div << CLK_DIV_SHFT) | SER_CLK_EN),
+			       mas->base, GENI_SER_M_CLK_CFG);
+
+		/*
+		 * Ensure Clk config completes before return.
+		 */
+		mb();
+	}
+
 	ret = clk_set_rate(se->clk, sclk_freq);
 	if (ret) {
 		dev_err(mas->dev, "%s: clk_set_rate failed %d\n",
@@ -583,8 +594,6 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 	u32 cpha = geni_read_reg(mas->base, SE_SPI_CPHA);
 	u32 demux_sel = 0;
 	u32 demux_output_inv = 0;
-	u32 clk_sel = 0;
-	u32 m_clk_cfg = 0;
 	int ret = 0;
 	int idx;
 	int div;
@@ -634,23 +643,17 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 		goto setup_fifo_params_exit;
 	}
 
-	clk_sel |= (idx & CLK_SEL_MSK);
-	m_clk_cfg |= ((div << CLK_DIV_SHFT) | SER_CLK_EN);
 	spi_setup_word_len(mas, spi_slv->mode, spi_slv->bits_per_word);
 	geni_write_reg(loopback_cfg, mas->base, SE_SPI_LOOPBACK);
 	geni_write_reg(demux_sel, mas->base, SE_SPI_DEMUX_SEL);
 	geni_write_reg(cpha, mas->base, SE_SPI_CPHA);
 	geni_write_reg(cpol, mas->base, SE_SPI_CPOL);
 	geni_write_reg(demux_output_inv, mas->base, SE_SPI_DEMUX_OUTPUT_INV);
-	geni_write_reg(clk_sel, mas->base, SE_GENI_CLK_SEL);
-	geni_write_reg(m_clk_cfg, mas->base, GENI_SER_M_CLK_CFG);
 	geni_write_reg(spi_delay_params, mas->base, SE_SPI_DELAY_COUNTERS);
-	SPI_LOG_DBG(mas->ipc, false, mas->dev,
-		"%s:Loopback%d demux_sel0x%x demux_op_inv 0x%x clk_cfg 0x%x\n",
-		__func__, loopback_cfg, demux_sel, demux_output_inv, m_clk_cfg);
-	SPI_LOG_DBG(mas->ipc, false, mas->dev,
-		"%s:clk_sel 0x%x cpol %d cpha %d delay 0x%x\n", __func__,
-					clk_sel, cpol, cpha, spi_delay_params);
+	SPI_LOG_DBG(mas->ipc, false, mas->dev, "%s: Loopback:%d demux_sel:0x%x demux_op_inv:0x%x\n",
+		    __func__, loopback_cfg, demux_sel, demux_output_inv);
+	SPI_LOG_DBG(mas->ipc, false, mas->dev, "%s:cpol %d cpha %d delay 0x%x\n",
+		    __func__, cpol, cpha, spi_delay_params);
 	/* Ensure message level attributes are written before returning */
 	mb();
 setup_fifo_params_exit:
@@ -1833,24 +1836,15 @@ static int setup_fifo_xfer(struct spi_transfer *xfer,
 
 	/* Speed and bits per word can be overridden per transfer */
 	if (xfer->speed_hz != mas->cur_speed_hz) {
-		u32 clk_sel = 0;
-		u32 m_clk_cfg = 0;
 		int idx = 0;
 		int div = 0;
 
 		ret = get_spi_clk_cfg(xfer->speed_hz, mas, &idx, &div);
 		if (ret) {
-			dev_err(mas->dev, "%s:Err setting clks:%d\n",
-								__func__, ret);
+			dev_err(mas->dev, "%s: Err setting clks:%d\n", __func__, ret);
 			return ret;
 		}
 		mas->cur_speed_hz = xfer->speed_hz;
-		clk_sel |= (idx & CLK_SEL_MSK);
-		m_clk_cfg |= ((div << CLK_DIV_SHFT) | SER_CLK_EN);
-		geni_write_reg(clk_sel, mas->base, SE_GENI_CLK_SEL);
-		geni_write_reg(m_clk_cfg, mas->base, GENI_SER_M_CLK_CFG);
-		SPI_LOG_DBG(mas->ipc, false, mas->dev,
-			    "%s: freq %d idx %d div %d\n", __func__, xfer->speed_hz, idx, div);
 	}
 
 	mas->tx_rem_bytes = 0;
@@ -2320,6 +2314,36 @@ static void geni_spi_handle_rx(struct spi_geni_master *mas)
 	mas->rx_rem_bytes -= rx_bytes;
 }
 
+/**
+ * spi_geni_is_dma_xfer_done() - Check if DMA transfer is complete
+ * @mas: SPI master structure
+ * @dma_tx_status: TX DMA status
+ * @dma_rx_status: RX DMA status
+ *
+ * Determines if the current DMA transfer is complete based on the transfer
+ * type (full-duplex, TX-only, or RX-only) and corresponding DMA done flags.
+ *
+ * Return: true if transfer is complete, false otherwise
+ */
+static bool spi_geni_is_dma_xfer_done(struct spi_geni_master *mas,
+				      u32 dma_tx_status, u32 dma_rx_status)
+{
+	if (!mas->cur_xfer)
+		return false;
+
+	if (mas->cur_xfer->tx_buf && mas->cur_xfer->rx_buf)
+		return (dma_tx_status & TX_DMA_DONE) && (dma_rx_status & RX_DMA_DONE) &&
+			!mas->tx_rem_bytes && !mas->rx_rem_bytes;
+
+	if (mas->cur_xfer->tx_buf)
+		return (dma_tx_status & TX_DMA_DONE) && !mas->tx_rem_bytes;
+
+	if (mas->cur_xfer->rx_buf)
+		return (dma_rx_status & RX_DMA_DONE) && !mas->rx_rem_bytes;
+
+	return false;
+}
+
 static irqreturn_t geni_spi_irq(int irq, void *data)
 {
 	struct spi_geni_master *mas = data;
@@ -2390,10 +2414,15 @@ static irqreturn_t geni_spi_irq(int irq, void *data)
 			mas->tx_rem_bytes = 0;
 		if (dma_rx_status & RX_DMA_DONE)
 			mas->rx_rem_bytes = 0;
-		if (!mas->tx_rem_bytes && !mas->rx_rem_bytes)
+		if (spi_geni_is_dma_xfer_done(mas, dma_tx_status, dma_rx_status))
 			mas->cmd_done = true;
 		if ((m_irq & M_CMD_CANCEL_EN) || (m_irq & M_CMD_ABORT_EN))
 			mas->cmd_done = true;
+
+		if (!mas->cmd_done)
+			SPI_LOG_DBG(mas->ipc, false, mas->dev,
+				    "Spurious IRQ!! DMA_TX:0x%x, DMA_RX:0x%x\n",
+				    dma_tx_status, dma_rx_status);
 	}
 exit_geni_spi_irq:
 	if (!mas->spi_ssr.is_ssr_down)

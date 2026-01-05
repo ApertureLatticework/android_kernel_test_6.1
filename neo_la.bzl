@@ -197,6 +197,8 @@ def define_neo_la():
         "net/wireless/cfg80211.ko",
     ]
 
+def define_neo_la():
+    _neo_in_tree_modules = neo_la_in_tree_modules
     _neo_consolidate_in_tree_modules = _neo_in_tree_modules + [
         # keep sorted
         "drivers/hwtracing/coresight/coresight-etm4x.ko",

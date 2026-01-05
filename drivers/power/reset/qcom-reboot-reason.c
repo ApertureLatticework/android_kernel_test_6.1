@@ -59,6 +59,7 @@ static struct poweroff_reason pon_reasons[] = {
 	//#endif/*OPLUS_FEATURE_AGINGTEST*/
 	{ "other",			0x3E },//PON_RESTART_REASON_NORMAL= 0x3E,
 #endif /*OPLUS_OEM_BOOT_MODE*/
+	{ "shipmode",			0x20, 0x2 },
 	{}
 };
 
@@ -90,6 +91,10 @@ static int qcom_reboot_reason_reboot(struct notifier_block *this,
 
 	if (!cmd)
 		return NOTIFY_OK;
+
+	if (of_device_is_compatible(reboot->dev->of_node, "qcom,imem-reboot-reason"))
+		reboot_mode = REBOOT_WARM;
+
 	for (reason = reboot->reasons; reason->cmd; reason++) {
 #ifdef OPLUS_OEM_BOOT_MODE
  		if ((!strcmp(cmd, reason->cmd))||(!strcmp("other", reason->cmd))) {

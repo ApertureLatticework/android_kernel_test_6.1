@@ -135,3 +135,12 @@ config OPLUS_FEATURE_MM_BOOSTPOOL
 	depends on QCOM_DMABUF_HEAPS && QCOM_DMABUF_HEAPS_SYSTEM
 	help
 	  Choose this option to enable the DMA-BUF heaps boost-pool library.
+
+config QCOM_DMABUF_HEAPS_SC_TCM
+	bool "QCOM dma-buf SC TCM heap"
+	depends on QCOM_SC_TCM_MEM && QCOM_DMABUF_HEAPS_CARVEOUT
+	help
+	  Choose this option to build QCOM DMA-BUF SC TCM heap.
+	  This is backed by the SC TCM memory which gets
+	  registered to this heap during the initialization.
+	  If in doubt, say N here.

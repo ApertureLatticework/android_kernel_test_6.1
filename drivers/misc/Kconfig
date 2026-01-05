@@ -595,6 +595,7 @@ config OPLUS_VIBRATOR_GKI_ENABLE
 	  This option enables support for vibrator compatibility.
 #endif
 
+source "drivers/misc/rtimd-i2c/Kconfig"
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -620,4 +621,5 @@ source "drivers/misc/oplus_power_notifier/Kconfig"
 source "drivers/misc/tri_state_key/Kconfig"
 source "drivers/misc/oplus_consumer_ir/Kconfig"
 source "drivers/misc/oplus_sync_fence/Kconfig"
+source "drivers/misc/vd628x/Kconfig"
 endmenu

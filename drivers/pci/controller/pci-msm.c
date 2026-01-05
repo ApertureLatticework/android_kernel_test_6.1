@@ -1356,14 +1356,12 @@ static u32 msm_pcie_keep_resources_on;
 static struct workqueue_struct *mpcie_wq;
 
 /* debugfs values */
-#ifdef CONFIG_DEBUG_FS
 static u32 rc_sel = BIT(0);
 static u32 base_sel;
 static u32 wr_offset;
 static u32 wr_mask;
 static u32 wr_value;
 static u32 __maybe_unused corr_counter_limit = 5;
-#endif
 
 /* CRC8 table for BDF to SID translation */
 static u8 msm_pcie_crc8_table[CRC8_TABLE_SIZE];
@@ -1830,7 +1828,6 @@ static void pcie_tcsr_init(struct msm_pcie_dev_t *dev)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
 static int msm_pcie_check_align(struct msm_pcie_dev_t *dev,
 						u32 offset)
 {
@@ -1843,7 +1840,6 @@ static int msm_pcie_check_align(struct msm_pcie_dev_t *dev,
 
 	return 0;
 }
-#endif
 
 static bool msm_pcie_dll_link_active(struct msm_pcie_dev_t *dev)
 {
@@ -1983,7 +1979,6 @@ static void pcie_dm_core_dump(struct msm_pcie_dev_t *dev)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
 /**
  * msm_pcie_loopback - configure RC in loopback mode and test loopback mode
  * @dev: root commpex
@@ -2696,7 +2691,6 @@ int msm_pcie_debug_info(struct pci_dev *dev, u32 option, u32 base,
 	return ret;
 }
 EXPORT_SYMBOL(msm_pcie_debug_info);
-#endif
 
 #ifdef CONFIG_SYSFS
 static ssize_t link_check_max_count_show(struct device *dev,
@@ -6879,26 +6873,6 @@ static void msm_pcie_disable(struct msm_pcie_dev_t *dev)
 									ret);
 	}
 
-	/* Assert, De-assert the pipe reset */
-	msm_pcie_pipe_reset(dev);
-
-	/* ensure that changes propagated to the hardware */
-	wmb();
-
-	/* reset pcie controller and phy */
-	msm_pcie_core_phy_reset(dev);
-
-	/* ensure that changes propagated to the hardware */
-	wmb();
-
-	/* Use CESTA to turn off the resources */
-	if (dev->pcie_sm) {
-		ret = msm_pcie_cesta_map_apply(dev, D3COLD_STATE);
-		if (ret)
-			PCIE_ERR(dev, "Failed to move to D3 cold state %d\n",
-									ret);
-	}
-
 	msm_pcie_clk_deinit(dev);
 	msm_pcie_gdsc_deinit(dev);
 	msm_pcie_vreg_deinit(dev);
@@ -10981,40 +10955,37 @@ static int msm_pcie_pm_suspend(struct pci_dev *dev,
 		return ret;
 	}
 
-	if (dev) {
-		if (msm_pcie_confirm_linkup(pcie_dev, true, true, dev)) {
-			PCIE_DBG(pcie_dev, "PCIe: RC%d: save config space\n",
-					 pcie_dev->rc_idx);
-			ret = pci_save_state(dev);
-			if (ret) {
-				PCIE_ERR(pcie_dev,
-					 "PCIe: RC%d: fail to save state:%d.\n",
-					 pcie_dev->rc_idx, ret);
-				pcie_dev->suspending = false;
-				return ret;
-			}
-
-		} else {
-			kfree(pcie_dev->saved_state);
-			pcie_dev->saved_state = NULL;
-
-			PCIE_DBG(pcie_dev,
-				 "PCIe: RC%d: load default config space\n",
+	if (msm_pcie_confirm_linkup(pcie_dev, true, true, dev)) {
+		PCIE_DBG(pcie_dev, "PCIe: RC%d: save config space\n",
 				 pcie_dev->rc_idx);
-			ret = pci_load_saved_state(dev, pcie_dev->default_state);
-			if (ret) {
-				PCIE_ERR(pcie_dev,
-					 "PCIe: RC%d: fail to load default state:%d.\n",
-					 pcie_dev->rc_idx, ret);
-				pcie_dev->suspending = false;
-				return ret;
-			}
+		ret = pci_save_state(dev);
+		if (ret) {
+			PCIE_ERR(pcie_dev,
+				 "PCIe: RC%d: fail to save state:%d.\n",
+				 pcie_dev->rc_idx, ret);
+			pcie_dev->suspending = false;
+			return ret;
 		}
 
-		PCIE_DBG(pcie_dev, "PCIe: RC%d: store saved state\n",
-							 pcie_dev->rc_idx);
-		pcie_dev->saved_state = pci_store_saved_state(dev);
+	} else {
+		kfree(pcie_dev->saved_state);
+		pcie_dev->saved_state = NULL;
+
+		PCIE_DBG(pcie_dev, "PCIe: RC%d: load default config space\n",
+			 pcie_dev->rc_idx);
+		ret = pci_load_saved_state(dev, pcie_dev->default_state);
+		if (ret) {
+			PCIE_ERR(pcie_dev,
+				 "PCIe: RC%d: fail to load default state:%d.\n",
+				 pcie_dev->rc_idx, ret);
+			pcie_dev->suspending = false;
+			return ret;
+		}
 	}
+
+	PCIE_DBG(pcie_dev, "PCIe: RC%d: store saved state\n",
+						 pcie_dev->rc_idx);
+	pcie_dev->saved_state = pci_store_saved_state(dev);
 
 	spin_lock_irqsave(&pcie_dev->cfg_lock,
 				pcie_dev->irqsave_flags);
@@ -11122,26 +11093,23 @@ static int msm_pcie_pm_resume(struct pci_dev *dev,
 		"dev->bus->number = %d dev->bus->primary = %d\n",
 		 dev->bus->number, dev->bus->primary);
 
-	if (dev) {
-		PCIE_DBG(pcie_dev, "RC%d: restore config space\n",
-			 pcie_dev->rc_idx);
+	PCIE_DBG(pcie_dev, "RC%d: restore config space\n", pcie_dev->rc_idx);
 
-		/*
-		 * Pci framework tries to read the pm_cap config register
-		 * during the system resume process and since our pcie
-		 * controller might not have the clocks/regulators on at
-		 * that time, framework will put the power_state as D3Cold.
-		 *
-		 * Since the power_state is D3Cold, pci_restore_state API
-		 * will not be able to write the MSI address to config space.
-		 * Thereby resulting in a smmu fault when trying to rise a
-		 * MSI for the AER.
-		 */
-		pci_set_power_state(dev, PCI_D0);
+	/*
+	 * Pci framework tries to read the pm_cap config register
+	 * during the system resume process and since our pcie
+	 * controller might not have the clocks/regulators on at
+	 * that time, framework will put the power_state as D3Cold.
+	 *
+	 * Since the power_state is D3Cold, pci_restore_state API
+	 * will not be able to write the MSI address to config space.
+	 * Thereby resulting in a smmu fault when trying to rise a
+	 * MSI for the AER.
+	 */
+	pci_set_power_state(dev, PCI_D0);
 
-		pci_load_and_free_saved_state(dev, &pcie_dev->saved_state);
-		pci_restore_state(dev);
-	}
+	pci_load_and_free_saved_state(dev, &pcie_dev->saved_state);
+	pci_restore_state(dev);
 
 	PCIE_DBG(pcie_dev, "RC%d: exit\n", pcie_dev->rc_idx);
 

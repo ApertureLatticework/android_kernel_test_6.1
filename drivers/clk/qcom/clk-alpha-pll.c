@@ -445,6 +445,8 @@ void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 		val |= config->pre_div_val;
 		val |= config->vco_val;
 		val |= config->alpha_en_mask;
+
+>>>>>>> 5a4110916cb6e1fd1af702a29f6227652de409dc
 		mask = config->main_output_mask;
 		mask |= config->aux_output_mask;
 		mask |= config->aux2_output_mask;
@@ -1337,6 +1339,10 @@ static void clk_pll_restore_context(struct clk_hw *hw)
 		clk_lucid_evo_pll_configure(pll, pll->clkr.regmap,
 					pll->config);
 		break;
+	case CLK_ALPHA_PLL_TYPE_LUCID_OLE:
+		clk_lucid_ole_pll_configure(pll, pll->clkr.regmap,
+					    pll->config);
+		break;
 	case CLK_ALPHA_PLL_TYPE_RIVIAN_EVO:
 		clk_rivian_evo_pll_configure(pll, pll->clkr.regmap,
 					pll->config);
@@ -2013,7 +2019,8 @@ clk_trion_pll_postdiv_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		return -EINVAL;
 	}
 
-	regmap_read(regmap, PLL_USER_CTL(pll), &val);
+	if (regmap_read(regmap, PLL_USER_CTL(pll), &val))
+		return 0;
 
 	val >>= pll->post_div_shift;
 	val &= PLL_POST_DIV_MASK(pll);

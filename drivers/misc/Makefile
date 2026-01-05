@@ -33,6 +33,7 @@ obj-$(CONFIG_ISL29020)		+= isl29020.o
 obj-$(CONFIG_SENSORS_TSL2550)	+= tsl2550.o
 obj-$(CONFIG_DS1682)		+= ds1682.o
 obj-$(CONFIG_C2PORT)		+= c2port/
+obj-$(CONFIG_RTIMD_I2C)		+= rtimd-i2c/
 obj-$(CONFIG_HMC6352)		+= hmc6352.o
 obj-y				+= eeprom/
 obj-y				+= cb710/
@@ -102,3 +103,4 @@ obj-$(CONFIG_OPLUS_SENSOR_CONSUMER_IR_CORE) += oplus_consumer_ir/
 #ifdef CONFIG_OPLUS_SYNC_FENCE
 obj-$(CONFIG_OPLUS_SYNC_FENCE) += oplus_sync_fence/
 #endif /* CONFIG_OPLUS_SYNC_FENCE */
+obj-$(CONFIG_VD628x)      += vd628x/

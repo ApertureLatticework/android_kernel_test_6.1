@@ -258,6 +258,7 @@ struct qcom_hgsl {
 	struct kobject *clients_sysfs;
 	struct dentry *debugfs;
 	struct dentry *clients_debugfs;
+	struct dentry *debugfs_stat;
 };
 
 /**
@@ -390,6 +391,81 @@ static inline u32 hgsl_hnd2id(u32 dev_hnd)
 		((dev_hnd == GSL_HANDLE_DEV1) ? 1 : 0);
 }
 
+static inline uint32_t get_context_retired_ts(struct hgsl_context *ctxt)
+{
+	u32 ts = ctxt->shadow_ts->eop;
+
+	/* ensure read is done before comparison */
+	dma_rmb();
+	return ts;
+}
+
+static inline int get_context_shadow_ts(
+	struct hgsl_context *ctxt,
+	enum gsl_timestamp_type_t type,
+	uint32_t *timestamp)
+{
+	int ret = 0;
+
+	if (!ctxt || !ctxt->shadow_ts) {
+		*timestamp = 0;
+		return -EINVAL;
+	}
+
+	switch (type) {
+	case GSL_TIMESTAMP_RETIRED:
+		*timestamp = ctxt->shadow_ts->eop;
+		break;
+	case GSL_TIMESTAMP_CONSUMED:
+		*timestamp = ctxt->shadow_ts->sop;
+		break;
+	case GSL_TIMESTAMP_QUEUED:
+		*timestamp = ctxt->queued_ts;
+		break;
+	default:
+		ret = -EINVAL;
+		*timestamp = 0;
+		break;
+	}
+
+	/* ensure read is done before return */
+	dma_rmb();
+	LOGD("%d, %u, %u, %u", ret, ctxt->context_id, type, *timestamp);
+	return ret;
+}
+
+static inline void set_context_shadow_ts(
+	struct hgsl_context *ctxt,
+	enum gsl_timestamp_type_t type,
+	uint32_t ts)
+{
+	if (!ctxt || !ctxt->shadow_ts)
+		return;
+
+	switch (type) {
+	case GSL_TIMESTAMP_RETIRED:
+		ctxt->shadow_ts->eop = ts;
+		break;
+	case GSL_TIMESTAMP_CONSUMED:
+		ctxt->shadow_ts->sop = ts;
+		break;
+	default:
+		LOGW("invalid type=%u context=[%u:%u] ts=%u",
+			type, ctxt->devhandle, ctxt->context_id, ts);
+		return;
+	}
+
+	/* ensure update is done before return */
+	dma_wmb();
+	LOGD("[%u:%u], %u, %u", ctxt->devhandle, ctxt->context_id, type, ts);
+}
+
+static inline bool _timestamp_retired(struct hgsl_context *ctxt,
+	unsigned int timestamp)
+{
+	return hgsl_ts32_ge(get_context_retired_ts(ctxt), timestamp);
+}
+
 /**
  * struct hgsl_hsync_timeline - A sync timeline attached under each hgsl context
  * @kref: Refcount to keep the struct alive
@@ -453,6 +529,29 @@ struct hgsl_isync_fence {
 	u64 ts;
 };
 
+struct hgsl_active_wait {
+	struct list_head head;
+	struct hgsl_context *ctxt;
+	unsigned int timestamp;
+};
+
+/**
+ * struct hgsl_sync_fence_cb - Used for fence callbacks
+ * fence_cb: Fence callback struct
+ * fence: Pointer to the fence for which the callback is done
+ * priv: Private data for the callback
+ * func: Pointer to the hgsl function to call. This function should return
+ * false if the sync callback is marked for cancellation in a separate thread.
+ */
+struct hgsl_sync_fence_cb {
+	struct dma_fence_cb fence_cb;
+	struct dma_fence *fence;
+	void *priv;
+	bool (*func)(void *priv);
+};
+
+struct hgsl_drawobj_sync_event;
+
 /* Fence for commands. */
 struct hgsl_hsync_fence *hgsl_hsync_fence_create(
 					struct hgsl_context *context,
@@ -476,10 +575,61 @@ int hgsl_isync_fence_signal(struct hgsl_priv *priv, uint32_t timeline_id,
 							       int fence_fd);
 int hgsl_isync_forward(struct hgsl_priv *priv, uint32_t timeline_id,
 								uint64_t ts, bool check_owner);
+struct hgsl_isync_timeline *hgsl_isync_timeline_get(struct hgsl_priv *priv,
+		int id, bool check_owner);
+
+void hgsl_isync_timeline_put(struct hgsl_isync_timeline *timeline);
+
 int hgsl_isync_query(struct hgsl_priv *priv, uint32_t timeline_id,
 							uint64_t *ts);
 int hgsl_isync_wait_multiple(struct hgsl_priv *priv, struct hgsl_timeline_wait *param);
 
+struct dma_fence *hgsl_timelines_to_fence_array(struct hgsl_priv *priv,
+		u64 timelines, u32 count, u64 usize, bool any);
+
 void hgsl_retire_common(struct qcom_hgsl *hgsl, u32 dev_hnd);
+
+struct hgsl_context *hgsl_get_context(struct qcom_hgsl *hgsl,
+	uint32_t dev_hnd, uint32_t context_id);
+void hgsl_put_context(struct hgsl_context *ctxt);
+
+int hgsl_db_next_timestamp(struct hgsl_context *ctxt, uint32_t *timestamp);
+
+int hgsl_read_timestamp(struct hgsl_context *ctxt, enum gsl_timestamp_type_t type,
+		u32 *timestamp);
+
+static inline bool hgsl_check_timestamp(struct hgsl_priv *priv,
+	struct hgsl_context *ctxt, u32 timestamp)
+{
+	u32 retired;
+
+	if (hgsl_read_timestamp(ctxt, GSL_TIMESTAMP_RETIRED, &retired))
+		return false;
+
+	return hgsl_ts32_ge(retired, timestamp);
+}
+
+void hgsl_get_fence_info(struct hgsl_drawobj_sync_event *event);
+int hgsl_issue_drawobj(struct qcom_hgsl *hgsl, struct hgsl_drawobj *drawobj);
+
+int hgsl_events_init(struct qcom_hgsl *hgsl);
+void hgsl_events_deinit(struct qcom_hgsl *hgsl);
+
+void hgsl_add_event_group(struct qcom_hgsl *hgsl, struct hgsl_event_group *group,
+		struct hgsl_context *ctxt, readtimestamp_func readtimestamp, void *priv,
+		const char *fmt, ...);
+void hgsl_del_event_group(struct qcom_hgsl *hgsl, struct hgsl_event_group *group);
+int hgsl_add_event(struct hgsl_priv *hgsl_priv, struct hgsl_event_group *group,
+		u32 timestamp, hgsl_event_func func, void *priv);
+void hgsl_cancel_event(struct qcom_hgsl *hgsl, struct hgsl_event_group *group,
+		u32 timestamp, hgsl_event_func func, void *priv);
+void hgsl_cancel_events_timestamp(struct qcom_hgsl *hgsl, struct hgsl_event_group *group,
+		u32 timestamp);
+void hgsl_process_event_group(struct qcom_hgsl *hgsl, struct hgsl_event_group *group);
+void hgsl_flush_event_group(struct qcom_hgsl *hgsl, struct hgsl_event_group *group);
+
+struct hgsl_sync_fence_cb *hgsl_sync_fence_async_wait(int fd, bool (*func)(void *priv),
+		void *priv);
+void hgsl_sync_fence_async_cancel(struct hgsl_sync_fence_cb *kcb);
 
 #endif /* __HGSL_H_ */

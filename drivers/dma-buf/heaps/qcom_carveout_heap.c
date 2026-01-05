@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2011 Google, Inc.
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/dma-mapping.h>
@@ -122,7 +122,7 @@ static void carveout_free(struct carveout_heap *carveout_heap,
 
 struct mem_buf_vmperm *
 carveout_setup_vmperm(struct carveout_heap *carveout_heap,
-			struct sg_table *sgt)
+			struct qcom_sg_buffer *buffer)
 {
 	struct secure_carveout_heap *sc_heap;
 	struct mem_buf_vmperm *vmperm;
@@ -131,7 +131,8 @@ carveout_setup_vmperm(struct carveout_heap *carveout_heap,
 	int ret;
 
 	if (!carveout_heap->is_secure) {
-		vmperm = mem_buf_vmperm_alloc(sgt);
+		vmperm = mem_buf_vmperm_alloc(&buffer->sg_table, qcom_sg_release,
+				&buffer->kref);
 		return vmperm;
 	}
 
@@ -143,7 +144,8 @@ carveout_setup_vmperm(struct carveout_heap *carveout_heap,
 	if (ret)
 		return ERR_PTR(ret);
 
-	vmperm = mem_buf_vmperm_alloc_staticvm(sgt, vmids, perms, nr);
+	vmperm = mem_buf_vmperm_alloc_staticvm(&buffer->sg_table, vmids, perms, nr,
+				qcom_sg_release, &buffer->kref);
 	kfree(vmids);
 	kfree(perms);
 
@@ -168,8 +170,7 @@ static struct dma_buf *__carveout_heap_allocate(struct carveout_heap *carveout_h
 		return ERR_PTR(-ENOMEM);
 
 	/* Initialize the buffer */
-	INIT_LIST_HEAD(&buffer->attachments);
-	mutex_init(&buffer->lock);
+	qcom_sg_buffer_init(buffer);
 	buffer->heap = carveout_heap->heap;
 	buffer->len = len;
 	buffer->free = buffer_free;
@@ -188,7 +189,7 @@ static struct dma_buf *__carveout_heap_allocate(struct carveout_heap *carveout_h
 
 	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), len, 0);
 
-	buffer->vmperm = carveout_setup_vmperm(carveout_heap, &buffer->sg_table);
+	buffer->vmperm = carveout_setup_vmperm(carveout_heap, buffer);
 	if (IS_ERR(buffer->vmperm))
 		goto err_free_carveout;
 
@@ -207,7 +208,7 @@ static struct dma_buf *__carveout_heap_allocate(struct carveout_heap *carveout_h
 	return dmabuf;
 
 err_free_vmperm:
-	mem_buf_vmperm_release(buffer->vmperm);
+	mem_buf_vmperm_free(buffer->vmperm);
 err_free_carveout:
 	carveout_free(carveout_heap, paddr, len);
 err_free_table:
