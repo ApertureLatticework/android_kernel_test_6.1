@@ -2818,37 +2818,6 @@ static int i2c_initiate_bus_recovery(struct geni_i2c_dev *gi2c)
 }
 
 /**
- * i2c_initiate_bus_recovery() - Initiates I2C bus recovery when SCL is high but SDA is low.
- * @gi2c: Pointer to the I2C device structure.
- *
- * Return: 0 on success OR respective error code value for failure.
- */
-static int i2c_initiate_bus_recovery(struct geni_i2c_dev *gi2c)
-{
-	int ret = 0;
-	u32 geni_ios = geni_read_reg(gi2c->base, SE_GENI_IOS);
-
-	if ((geni_ios & SCL_SDA_MASK) != I2C_SCL_HIGH_SDA_LOW)
-		return 0;
-
-	gi2c->err = -EBUSY;
-	if (!gi2c->bus_recovery_enable) {
-		GENI_SE_ERR(gi2c->ipcl, false, gi2c->dev, "Bus Recovery not enabled\n");
-		return -ENXIO;
-	}
-
-	ret = geni_i2c_bus_recovery(gi2c);
-	if (ret) {
-		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev, "%s:Bus Recovery failed\n", __func__);
-		return ret;
-	}
-
-	gi2c->err = 0;
-
-	return ret;
-}
-
-/**
  * geni_i2c_xfer() - Performs non GSI mode data transfer
  * @adap: Master controller handle
  * @msgs[]: i2c_msg structure as a pointer
