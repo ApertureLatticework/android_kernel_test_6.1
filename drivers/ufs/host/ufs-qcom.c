@@ -2670,7 +2670,7 @@ static int ufs_qcom_apply_dev_quirks(struct ufs_hba *hba)
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_PA_TX_HSG1_SYNC_LENGTH)
 		ufs_qcom_override_pa_tx_hsg1_sync_len(hba);
 
-	ufshcd_parse_pm_levels(hba);
+	ufs_qcom_parse_pm_levels(hba);
 
 	/* the v7 need to keep vcc on for stability */
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_SAMSUNG_QLC) {
