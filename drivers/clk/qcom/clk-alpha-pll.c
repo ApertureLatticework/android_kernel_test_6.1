@@ -446,7 +446,6 @@ void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 		val |= config->vco_val;
 		val |= config->alpha_en_mask;
 
->>>>>>> 5a4110916cb6e1fd1af702a29f6227652de409dc
 		mask = config->main_output_mask;
 		mask |= config->aux_output_mask;
 		mask |= config->aux2_output_mask;
