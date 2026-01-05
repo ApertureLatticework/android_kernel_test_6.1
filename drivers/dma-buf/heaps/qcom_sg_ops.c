@@ -591,9 +591,6 @@ void qcom_sg_dmabuf_release(struct dma_buf *dmabuf)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 
-	if (mem_buf_vmperm_release(buffer->vmperm))
-		return;
-
 	msm_dma_buf_freed(buffer);
 #if IS_ENABLED(CONFIG_QCOM_DMABUF_HEAPS_SYSTEM) && IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_OSVELTE)
 	if (is_system_heap_deferred_free(buffer->free)) {
