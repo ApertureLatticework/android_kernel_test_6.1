@@ -1970,7 +1970,7 @@ out:
 }
 
 
-static int setup_global_sync_mem(struct qcom_adsp *adsp)
+int setup_global_sync_mem(struct qcom_adsp *adsp)
 {
 	struct qcom_scm_vmperm newvm[2];
 	struct device_node *node;
