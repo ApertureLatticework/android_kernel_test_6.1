@@ -67,6 +67,7 @@
 #define SBL_MINIDUMP_SMEM_ID                    602
 #define MAX_NUM_OF_SS                           10
 
+
 /**
  * struct minidump_subsystem_toc: Subsystem's SMEM Table of content
  * @status : Subsystem toc init status
