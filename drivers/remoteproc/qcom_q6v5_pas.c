@@ -67,7 +67,6 @@
 #define SBL_MINIDUMP_SMEM_ID                    602
 #define MAX_NUM_OF_SS                           10
 
-
 /**
  * struct minidump_subsystem_toc: Subsystem's SMEM Table of content
  * @status : Subsystem toc init status
@@ -112,7 +111,7 @@ static bool global_sync_mem_setup;
 static bool recovery_set_cb;
 bool power_state_enter_into_hibernate;
 EXPORT_SYMBOL_GPL(power_state_enter_into_hibernate);
-
+static int setup_global_sync_mem(struct qcom_adsp *adsp);
 #define to_rproc(d) container_of(d, struct rproc, dev)
 
 #define SOCCP_SLEEP_US  100
@@ -1970,7 +1969,7 @@ out:
 }
 
 
-int setup_global_sync_mem(struct qcom_adsp *adsp)
+static int setup_global_sync_mem(struct qcom_adsp *adsp)
 {
 	struct qcom_scm_vmperm newvm[2];
 	struct device_node *node;
