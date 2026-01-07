@@ -112,7 +112,7 @@ static bool global_sync_mem_setup;
 static bool recovery_set_cb;
 bool power_state_enter_into_hibernate;
 EXPORT_SYMBOL_GPL(power_state_enter_into_hibernate);
-static int setup_global_sync_mem(struct qcom_adsp *adsp);
+
 #define to_rproc(d) container_of(d, struct rproc, dev)
 
 #define SOCCP_SLEEP_US  100
@@ -244,7 +244,7 @@ struct qcom_adsp {
 #ifdef OPLUS_FEATURE_MODEM_MINIDUMP
 static u32 oplus_modem_minidump_user_pid = 0;
 struct minidump_subsystem modem_minidump_toc;
-
+static int setup_global_sync_mem(struct qcom_adsp *adsp);
 enum oplus_modem_minidump_msg_type_et{
 	OPLUS_MODEM_MINIDUMP_MSG_INDICATION_DUMP_TYPE,
 	__OPLUS_MODEM_MINIDUMP_MSG_MAX,
